@@ -1,6 +1,3 @@
-# GMA3Plugins
-Plugins that i have created for getting sooner to the catering booth. 
-
 ## Magic_ColorGrid
 This plugin creates a ColorGrid for the grandMA3
 
