@@ -4,7 +4,6 @@ Plugins that i have created for getting sooner to the catering booth.
 ## Magic_ColorGrid
 This plugin creates a ColorGrid for the grandMA3
 
-### Tested on grandMA3 Version 1.4.0.2
 ![Magic_ColorGrid_ScreenShot](/Magic_ColorGrid_ScreenShot.png)
 
 ### Features
@@ -16,6 +15,9 @@ This plugin creates a ColorGrid for the grandMA3
 * Delay Align buttons for each group
 * Delaytime adjustment 
 * Fadetime adjustment
+
+### Compatibility
+* Tested on **grandMA3 Version 1.4.0.2**
 
 ### Installation
 * Copy the files in lib_images/ to 
