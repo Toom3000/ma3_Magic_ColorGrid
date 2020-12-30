@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<GMA3 DataVersion="0.1.62.0">
+    <Plugin Name="Magic_ColorGrid" Guid="00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" Version="1.0.0.0" Path="/Magic_ColorGrid">
+        <ComponentLua ContentType="Installed" Name="Magic_ColorGrid" FileName="Magic_ColorGrid.lua" />
+    </Plugin>
+</GMA3>
