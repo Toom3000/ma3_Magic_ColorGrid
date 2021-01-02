@@ -23,7 +23,7 @@ This plugin creates a ColorGrid for the grandMA3
   * <YOUR_INSTALLATION_DRIVE>:\ProgramData\MALightingTechnology\gma3_1.4.0\shared\resource\lib_plugins
 * Prepare your showfile
   * Patch fixtures
-  * Arrange the fixtures using 3d or selctiongrid
+  * Arrange the fixtures using 3d or selectiongrid 
     * If this is not done in advance, the fade and delay functionality may not work properly
   * Create your fixture groups
 * Now import the plugin
