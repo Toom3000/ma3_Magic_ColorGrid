@@ -120,7 +120,7 @@ local gParams = {
 	mMacro = {
 		mBaseNo = 2000,
 		mWaitTime = "0.1",
-		mDelayWaitTime = "0.2",
+		mDelayWaitTime = "0.3",
 		mDelayOffMacroNo = 0,
 		mAllColorWhiteMacroNo = 0,
 		mDelayTimeZeroMacroNo = 0,
@@ -258,6 +258,7 @@ end
 -- *************************************************************
 
 function RegisterGridItem(inRow,inCol,inX,inY,inWidth,inHeight,inType,inTypeExecNo,inVisibleName)
+	log("[RegisterGridItem] Registering grid item. Row=" .. inRow .. " Col=" .. inCol .. " X=" .. tostring(inX) .. " Y=" .. tostring(inY) .. " Width=" .. tostring(inWidth) .. " Height=" .. tostring(inHeight) .. " Type=" .. inType .. " inTypeExecNo=" .. inTypeExecNo .. " VisibleName=" .. tostring(inVisibleName));
 	myGridItem = {
 		mRow = inRow,
 		mCol = inCol,
@@ -316,7 +317,7 @@ end
 -- *************************************************************
 
 function getGroupOffset(inGroupNo)
-	myGroupNo = tonumber(inGroupNo) or 0
+	local myGroupNo = tonumber(inGroupNo) or 0
 	return myGroupNo * (gParams.mMaxGelNo + gParams.mMaxDelayMacroNo + 1 );
 end
 
@@ -386,7 +387,7 @@ function initGroupRegister()
 	-- Since i have no sense on how to find out how many groups are actually present we 
 	-- will check up to mMaxCheckNo groups. That should be sufficient for most applications.
 	for myGroupNo=1,gParams.mGroup.mMaxCheckNo,1 do	
-		myGroup = myGroups:Ptr(myGroupNo);
+		local myGroup = myGroups:Ptr(myGroupNo);
 		if myGroup ~= nil then
 			RegisterGroupItem(myGroup);
 		end
@@ -601,20 +602,21 @@ function MacroDelayCreate(inNo,inGroupNo,inName,inGroupName)
 
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"Group '" .. inGroupName .. "'\"");
 	myCmdString = "Attribute 'ColorRGB_R' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. " Attribute 'ColorRGB_G' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. " Attribute 'ColorRGB_B' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. " Attribute 'ColorRGB_RY' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. " Attribute 'ColorRGB_W' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. " Attribute 'ColorRGB_G' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. " Attribute 'ColorRGB_UV' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. " Attribute 'ColorRGB_GY' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_G' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_B' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_C' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_RY' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_W' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_G' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_UV' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_GY' at delay " .. myDelayString .. " at fade " .. myFadeString
 	
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"" .. myCmdString ..  "\"");
 	-- Unfortunately the behaviour of the different approaches of removing the absolute values changes unpredictably from grandMA3 Release Version to Version.
 	-- So this has to be adjusted on every release until they find a convenient solution for this.
 	-- C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"off absolute\""); -- This has been working until version 1.4.0.2, after that it knocks out the delay and fade values as well...However, the syntax of the command could be intended to do it this way :)
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"off FeatureGroup 'Color'.'RGB' Absolute\""); -- This seems to work with version 1.4.0.2 and newer, it knocks out the absolute values and keeps the fade and delay values by not touching the other programmer values.
-	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"store preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " /m\"");
+	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"store preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " /selective /m\"");
 
 	for myPos=1,gParams.mMaxDelayMacroNo,1 do
 		local myImagePos = gParams.mImage.mBaseExecNo + myPos + getGroupOffset(inGroupNo) + gParams.mMaxGelNo;
@@ -640,7 +642,6 @@ function MacroDelayCreateAll(inNo,inName,inMaxGroups)
 	local myExecNo = getExecNo(inNo,0);
 	local myMacroNo = getMacroNo(inNo,0); 
 	local myAppearanceNo = getAppearanceNo(inNo,0);
-	local myNewMacroCount = 0;
 	local myActiveStorageNo = gParams.mImage.mDelayOffActiveNo;
 	local myInactiveStorageNo = gParams.mImage.mDelayOffInactiveNo;
 	if inName == ">" then
@@ -675,9 +676,7 @@ function MacroDelayCreateAll(inNo,inName,inMaxGroups)
 	-- Activate all macros that are bound to this delay on all groups
 	for myGroupNo=1,inMaxGroups,1 do
 		local myExecMacroNo = getMacroNo(inNo,myGroupNo); 
-		C("store macro " .. myMacroNo .. " \"GoMacro" .. myExecMacroNo .. "\" Command \"go+ macro " .. myExecMacroNo .. "\"");
-		C("set macro " .. myMacroNo .. "." .. myNewMacroCount .. " Property \"wait\" " .. gParams.mMacro.mDelayWaitTime );
-		myNewMacroCount = myNewMacroCount + 1;
+		C("store macro " .. myMacroNo .. " \"GoMacro" .. myExecMacroNo .. "\" Command \"go+ macro " .. myExecMacroNo .. "\" Property \"wait\" " .. gParams.mMacro.mDelayWaitTime);
 	end
 
 	C("Label macro " .. myMacroNo .. " \"" .. inName .. "\"" )
@@ -937,7 +936,6 @@ function MacroAllCreate(inNo,inGroupNo,inName,inMaxGroups)
 	local myExecNo = getExecNo(inNo,inGroupNo);
 	local myActiveStorageNo = gParams.mImage.mGridItemActiveNo;
 	local myInactiveStorageNo = gParams.mImage.mGridItemInactiveNo;
-	local myNewMacroCount = 0;
 	log("[MacroAllCreate] Creating macro no " .. myMacroNo);
 
 	if inName == "White" then
@@ -953,16 +951,11 @@ function MacroAllCreate(inNo,inGroupNo,inName,inMaxGroups)
 		local myExecSeqNo = getSeqNo(inNo,myGroupNo);
 		C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mColorValStateNamePrefix .. gParams.mVar.mColorValStateMaxNo ..	")\" Command \"SetUserVar " .. gParams.mVar.mColorValStateNamePrefix .. gParams.mVar.mColorValStateMaxNo .. " '" .. myExecSeqNo .. "'\"");
 		C("store macro " .. myMacroNo .. " \"GoSeq" .. myExecSeqNo .. "\" Command \"go+ seq $" .. gParams.mVar.mSeqInvalidOffsetName .. "$" .. gParams.mVar.mColorValStateNamePrefix .. gParams.mVar.mColorValStateMaxNo .. "\"");
-		-- C("store macro " .. myMacroNo .. " \"GoSeq" .. myExecSeqNo .. "\" Command \"go+ seq " .. myExecSeqNo .. "\"");
-		myNewMacroCount = myNewMacroCount + 2;
 	end
-	myNewMacroCount = myNewMacroCount + 1;
 	-- Activate all macros that are bound to this color on all groups
 	for myGroupNo=1,inMaxGroups,1 do
 		local myExecMacroNo = getMacroNo(inNo,myGroupNo); 
-		C("store macro " .. myMacroNo .. " \"GoMacro" .. myExecMacroNo .. "\" Command \"go+ macro " .. myExecMacroNo .. "\"");
-		C("set macro " .. myMacroNo .. "." .. myNewMacroCount .. " Property \"wait\" " .. gParams.mMacro.mWaitTime );
-		myNewMacroCount = myNewMacroCount + 1;
+		C("store macro " .. myMacroNo .. " \"GoMacro" .. myExecMacroNo .. "\" Command \"go+ macro " .. myExecMacroNo .. "\" Property \"wait\" " .. gParams.mMacro.mWaitTime);
 	end
 
 	-- Add cmds to handle the images according to the sequence status
@@ -1007,7 +1000,7 @@ end
 function LabelCreateAll(inGroupNo)
 	local myMacroNo = getMacroNo(0,inGroupNo);
 	local myAppearanceNo = gParams.mAppearance.mBaseNo + getGroupOffset(inGroupNo);
-	myGroupName = "ALL";
+	local myGroupName = "ALL";
 	log("[LabelCreateAll] Creating label macro " .. myMacroNo .. " for group no " .. inGroupNo .. "(" .. myGroupName .. ")");
 	-- Set default image at execute location
 	C("Delete Image 'Custom'." .. gParams.mImage.mBaseExecNo + getGroupOffset(inGroupNo) .. "/NC");
@@ -1073,7 +1066,7 @@ function CreateGridEntry(inNo,inGroupNo,inGroupName)
 	local myExecNo = getExecNo(inNo,inGroupNo);
 	local myGelName = gMaGels[inNo].mName;
 	local myGelColor = gMaGels[inNo].mColor;
-	log("Creating entry no " .. inNo .. "[" .. myGelName .. "] for group " .. inGroupNo);
+	log("[CreateGridEntry] Creating entry no " .. inNo .. "[" .. myGelName .. "] for group " .. inGroupNo);
 
 	-- Set default image at execute location
 	ImageCopy(myActiveStorageNo,myExecNo);
@@ -1325,7 +1318,7 @@ local function CgInstall(display_handle)
 	
 	-- Actually create our colorgrid
 	LayoutCreate();
-
+	
 	-- Set default delaytime variable
 	C("SetUserVar " .. gParams.mVar.mDelaytimeName .. " \"" .. gParams.mVar.mDelaytimeDefaultVal .. "\"");
 	-- Set first color and delay macro to off as default
@@ -1422,8 +1415,10 @@ end
 -- *************************************************************
 
 local function initDefaults()
+	gParams.mGroup.mCurrentGroupNo = 0;
 	gParams.mGroup.mGroups = {};
 	gParams.mColorGrid.mGrid = {};	
+	gParams.mColorGrid.mCurrentRowNo = 1;
 	gParams.mImage.mBaseStorageNo = gParams.mImage.mBaseExecNo + 1024;
 end
 
