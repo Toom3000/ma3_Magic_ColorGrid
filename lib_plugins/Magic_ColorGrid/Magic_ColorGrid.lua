@@ -389,11 +389,7 @@ local function groupGetFixtureShortName(inGroupNo)
 	C("Clear" );
 	C("SelFix Group " .. inGroupNo );
 	local myFixtureIndex = SelectionFirst(true);
-	log("[groupGetFixtureShortName] myFixtureIndex=" .. myFixtureIndex);
 	local mySubFixture = GetSubfixture(myFixtureIndex);
-	log("[groupGetFixtureShortName] mySubFixture=" .. type(mySubFixture));
-	debug_logmetatable(mySubFixture);
-	log("[groupGetFixtureShortName] mySubFixture.name=" .. mySubFixture.name);
 	return mySubFixture.name;
 end
 
@@ -405,11 +401,8 @@ local function getFixtureTypeByName(inName)
 	local myResult = nil;
 	local myPools = getGma3Pools();
 	local myFixtureType = myPools.Fixturetype;
-	log("[getFixtureTypeByName] inName=" .. inName);
 	for myKey,myValue in ipairs(myFixtureType) do
 		-- This is probed out and seems to work at the moment. Also it is possible to obtain the full name in the .name child
-		log("[getFixtureTypeByName]  myValue.name=" .. myValue.name);
-		log("[getFixtureTypeByName]  myValue.shortname=" .. myValue.shortname);
 		if ( myValue.shortname == inName ) then
 			myResult = myValue;
 		end
@@ -464,27 +457,19 @@ local function getGroupColorWheelDmxValueForSlotName(inGroupNo,inGroupName,inCol
 		log("[getGroupColorWheelDmxValueForSlotName] Group " .. inGroupNo .. "(" .. inGroupName .. ") does not support color wheel");
 	else
 		local myFixtureIndex = SelectionFirst(true);
-		log("[getGroupColorWheelDmxValueForSlotName] myFixtureIndex=" .. myFixtureIndex);
 		local mySubFixture = GetSubfixture(myFixtureIndex);
-		log("[getGroupColorWheelDmxValueForSlotName] mySubFixture=" .. tostring(mySubFixture));
 		local myColor1UiChannelIdx = getUiChannelIdxForAttributeName(myFixtureIndex,"Color1");
-		log("[getGroupColorWheelDmxValueForSlotName] myColor1UiChannelIdx=" .. myColor1UiChannelIdx);
 		local myUiChannel = GetUIChannel(myColor1UiChannelIdx);
-		log("[getGroupColorWheelDmxValueForSlotName] myUiChannel=" .. tostring(myUiChannel));
 		-- We will look for a color wheel named C1
 		for myKey,myValue in ipairs(myUiChannel.logical_channel) do
 			-- Check if string contains C1...i know this is a bit fuzzy...however we will try
-			log("[getGroupColorWheelDmxValueForSlotName] myKey=" .. myKey .. " myValue=" .. tostring(myValue.name));
 			if ( string.find(myValue.name,cColWheelName) ~= nil ) then
-				log("Found wheel " .. myValue.name);
 				-- We found something that looks promising, now try to access the color values.
 				-- We will add some alternate names for the slots to have a higher chance of finding something.
 				local mySlotAlternates = addSlotAlternates(inSlotName);
 				for mySlotAlternateKey,mySlotAlternateValue in pairs(mySlotAlternates) do				
-					log("[getGroupColorWheelDmxValueForSlotName] mySlotAlternateValue=" .. mySlotAlternateValue);
 					local mySlot = myUiChannel.logical_channel[myKey][mySlotAlternateValue];
 					if ( mySlot ~= nil ) then
-						log("[getGroupColorWheelDmxValueForSlotName] Found slot " .. mySlot.name);
 						local myDmxValue = convertDmxChannelValue8Bit(mySlot.dmxfrom);
 						log( "[getGroupColorWheelDmxValueForSlotName] Found slot " .. mySlot.name .. " with DMX Value " ..  myDmxValue);
 						myResult = myDmxValue;
@@ -562,11 +547,8 @@ local function groupGetColMixType(inGroupNo)
 	C("Clear" );
 	C("SelFix Group " .. inGroupNo );
 	local myFixtureIndex = SelectionFirst(true);
-	log("[groupGetColMixType] myFixtureIndex=" .. myFixtureIndex);
 	local mySubFixture = GetSubfixture(myFixtureIndex);
-	log("[groupGetColMixType] mySubFixture=" .. type(mySubFixture));
 	debug_logmetatable(mySubFixture);
-	log("[groupGetColMixType] mySubFixture.name=" .. mySubFixture.name);
 	if ( myFixtureIndex ~= nil ) then
 		local myRgbRUiChannelIdx = getUiChannelIdxForAttributeName(myFixtureIndex,"ColorRGB_R");
 		local myRgbCUiChannelIdx = getUiChannelIdxForAttributeName(myFixtureIndex,"ColorRGB_C");
