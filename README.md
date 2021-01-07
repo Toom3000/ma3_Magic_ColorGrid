@@ -5,9 +5,9 @@ This plugin creates a ColorGrid for the grandMA3
 
 ## Features
 * Discovery of all current groups prior to installation
-  * Auto discovery of color capabilites (RGB_CMY,ColorWheel or None)
-  * Groups with not color capabilities will be omitted by the installer
-  * Groups to be included to the grid are fully user defineable
+  * Auto discovery of color capabilities (RGB_CMY,ColorWheel or None)
+  * Groups with no color capabilities will be omitted by the installer
+  * Groups to be included to the grid are fully user definable
 * Support for color wheel fixtures
   * The color names from the standard gel are compared to the color wheel configuration and mapped as good as possible
   * Delay and Fadetime functionality is not applied for the color wheel fixtures
