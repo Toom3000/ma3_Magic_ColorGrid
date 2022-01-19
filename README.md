@@ -19,7 +19,7 @@ This plugin creates a ColorGrid for the grandMA3
 * Fadetime adjustment
 
 ## Compatibility
-* Tested on **grandMA3 Version 1.4.0.2**
+* Tested on **grandMA3 Version 1.6.3**
 
 ## Installation
 * Copy the files in lib_images/ to 
