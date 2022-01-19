@@ -388,9 +388,16 @@ local cColMixTypeWheelFixed = "ColorWheel"
 local function groupGetFixtureShortName(inGroupNo)
 	C("Clear" );
 	C("SelFix Group " .. inGroupNo );
+	local myResult = nil;
 	local myFixtureIndex = SelectionFirst(true);
 	local mySubFixture = GetSubfixture(myFixtureIndex);
-	return mySubFixture.name;
+	local myName = mySubFixture.name;
+	-- This is dirty but i could not help myself in properly finding a way to 
+	-- get a connection between fixtures and fixture types
+	if ( string.len(myName) > 2) then
+		myResult = string.sub(myName,0,string.len(myName)-2);
+	end
+	return myResult;
 end
 
 -- *************************************************************
@@ -403,7 +410,9 @@ local function getFixtureTypeByName(inName)
 	local myFixtureType = myPools.Fixturetype;
 	for myKey,myValue in ipairs(myFixtureType) do
 		-- This is probed out and seems to work at the moment. Also it is possible to obtain the full name in the .name child
+		log("inName=" .. inName .. " name=" .. myValue.name .." shortname=" .. myValue.shortname);
 		if ( myValue.shortname == inName ) then
+			log("Match");
 			myResult = myValue;
 		end
 	end	
@@ -451,33 +460,91 @@ end
 -- getGroupColorWheelDmxValueForSlotName
 -- *************************************************************
 
-local function getGroupColorWheelDmxValueForSlotName(inGroupNo,inGroupName,inColMixType,inSlotName)
+local function getGroupColorWheelDmxValueForSlotName(inGroupItem,inSlotName)
 	local myResult = nil
-	if ( inColMixType ~= cColMixTypeWheelFixed ) then
-		log("[getGroupColorWheelDmxValueForSlotName] Group " .. inGroupNo .. "(" .. inGroupName .. ") does not support color wheel");
+	if ( inGroupItem.mColMixType ~= cColMixTypeWheelFixed ) then
+		log("[getGroupColorWheelDmxValueForSlotName] Group " .. inGroupItem.mNo .. "(" .. inGroupItem.mName .. ") does not support color wheel");
 	else
 		local myFixtureIndex = SelectionFirst(true);
+		if  ( myFixtureIndex == nil ) then
+			log("Error getting fixture index");
+			goto exit;
+		end
 		local mySubFixture = GetSubfixture(myFixtureIndex);
+		if  ( mySubFixture == nil ) then
+			log("Error getting mySubFixture");
+			goto exit;
+		end
+		debug_logmetatable(mySubFixture);
 		local myColor1UiChannelIdx = getUiChannelIdxForAttributeName(myFixtureIndex,"Color1");
+		if  ( myColor1UiChannelIdx == nil ) then
+			log("Error getting myColor1UiChannelIdx");
+			goto exit;
+		end
 		local myUiChannel = GetUIChannel(myColor1UiChannelIdx);
-		-- We will look for a color wheel named C1
-		for myKey,myValue in ipairs(myUiChannel.logical_channel) do
-			-- Check if string contains C1...i know this is a bit fuzzy...however we will try
-			if ( string.find(myValue.name,cColWheelName) ~= nil ) then
+		if  ( myUiChannel == nil ) then
+			log("Error getting myUiChannel");
+			goto exit;
+		end
+
+		local myDmxModes = inGroupItem.mFixtureType.DMXModes;
+		local myMode;
+		for _, mode in ipairs(myDmxModes) do
+			-- log("mode=" .. tostring(myMode) .. " mode.used=" .. tostring(mode.used));
+			if ( mode.used > 0 ) then
+				myMode=mode;
+				break;
+			end
+		end
+		
+		if ( myMode == nil ) then
+			log("Unable to obtain mode.");
+			goto exit;
+		end
+		
+		local myWheel;
+		for _,wheel in ipairs(myMode.DMXChannels) do
+			-- log ("wheel.name=" .. tostring(wheel.name));
+			if ( string.find(wheel.name,cColWheelName) ) then
+				myWheel=wheel;
+				break;
+			end
+		end
+		
+		if ( myWheel == nil ) then
+			log("Unable to obtain wheel.");
+			goto exit;
+		end
+		
+		local myColWheel;
+		for _,myValue in ipairs(myWheel) do
+			log ("myValue.name=" .. tostring(myValue.name));
+			if ( string.find(myValue.name,cColWheelName) ) then
+				myColWheel=myValue;
+				break;
+			end
+		end
+		
+		if ( myColWheel == nil ) then
+			log("Unable to obtain color wheel.");
+			goto exit;
+		end
+		
+		for _,myValueTemp in ipairs(myColWheel) do	
+			for myIndex,mySlot in ipairs(myValueTemp) do	
+				log ("index=" .. tostring(myIndex) .. " slot=" .. tostring(mySlot.name));
 				-- We found something that looks promising, now try to access the color values.
 				-- We will add some alternate names for the slots to have a higher chance of finding something.
 				local mySlotAlternates = addSlotAlternates(inSlotName);
 				for mySlotAlternateKey,mySlotAlternateValue in pairs(mySlotAlternates) do				
-					local mySlot = myUiChannel.logical_channel[myKey][mySlotAlternateValue];
-					if ( mySlot ~= nil ) then
+					if ( string.lower(mySlot.name) == string.lower(mySlotAlternateValue) ) then
 						local myDmxValue = convertDmxChannelValue8Bit(mySlot.dmxfrom);
-						log( "[getGroupColorWheelDmxValueForSlotName] Found slot " .. mySlot.name .. " with DMX Value " ..  myDmxValue);
+						log( "[getGroupColorWheelDmxValueForSlotName] Found slot " .. myColWheel.name .. " with dmx value " .. myDmxValue );
 						myResult = myDmxValue;
 						goto exit;
 					end
 				end
 			end
-			
 		end
 	end
 ::exit::
@@ -485,24 +552,25 @@ local function getGroupColorWheelDmxValueForSlotName(inGroupNo,inGroupName,inCol
 end
 
 local function dummy_test(inColorUiChannelIdx)
-	local uichannel = GetUIChannel(inColorUiChannelIdx);
-	log("uichannel");
-	debug_logtable(uichannel);
-	log("uichannel.meta");
-	debug_logmetatable(uichannel);
-	log("uichannel.flags");
-	debug_logtable(uichannel.flags);
-	log("uichannel.logical_channel");
-	debug_logmetatable(uichannel.logical_channel);
-	log("uichannel.logical_channel.name=" .. uichannel.logical_channel.name);
-	log("uichannel.logical_channel.name=" .. uichannel.logical_channel[1].name);
-	log("uichannel.logical_channel.attribute=" .. uichannel.logical_channel[1].attribute);
-	log("uichannel.logical_channel.dmxfrom=" .. uichannel.logical_channel[1].dmxfrom);
-	log("uichannel.logical_channel.dmxto=" .. uichannel.logical_channel[1].dmxto);
-	log("uichannel.logical_channel[1][\"red\"].name=" .. uichannel.logical_channel[1]["red"].name);
-	log("uichannel.logical_channel[1][\"red\"].dmxfrom=" .. convertDmxChannelValue8Bit(uichannel.logical_channel[1]["red"].dmxfrom));
-	log("uichannel.logical_channel[1][\"red\"].dmxto=" .. convertDmxChannelValue8Bit(uichannel.logical_channel[1]["red"].dmxto));
-	debug_logmetatable(uichannel.logical_channel[1]);
+
+	-- local uichannel = GetUIChannel(inColorUiChannelIdx);
+	-- log("uichannel");
+	-- debug_logtable(uichannel);
+	-- log("uichannel.meta");
+	-- debug_logmetatable(uichannel);
+	-- log("uichannel.flags");
+	-- debug_logtable(uichannel.flags);
+	-- log("uichannel.logical_channel");
+	-- debug_logmetatable(uichannel.logical_channel);
+	-- log("uichannel.logical_channel.name=" .. uichannel.logical_channel.name);
+	-- log("uichannel.logical_channel.name=" .. uichannel.logical_channel[1].name);
+	-- log("uichannel.logical_channel.attribute=" .. uichannel.logical_channel[1].attribute);
+	-- log("uichannel.logical_channel.dmxfrom=" .. uichannel.logical_channel[1].dmxfrom);
+	-- log("uichannel.logical_channel.dmxto=" .. uichannel.logical_channel[1].dmxto);
+	-- log("uichannel.logical_channel[1][\"red\"].name=" .. uichannel.logical_channel[1]["red"].name);
+	-- log("uichannel.logical_channel[1][\"red\"].dmxfrom=" .. convertDmxChannelValue8Bit(uichannel.logical_channel[1]["red"].dmxfrom));
+	-- log("uichannel.logical_channel[1][\"red\"].dmxto=" .. convertDmxChannelValue8Bit(uichannel.logical_channel[1]["red"].dmxto));
+	-- debug_logmetatable(uichannel.logical_channel[1]);
 	
 	if true then
 		local myPools = getGma3Pools();
@@ -560,7 +628,7 @@ local function groupGetColMixType(inGroupNo)
 				myResult = cColMixTypeNone;
 			else
 				myResult = cColMixTypeWheelFixed;
-				--dummy_test(myColor1UiChannelIdx);
+				dummy_test(myColor1UiChannelIdx);
 			end
 		else
 			myResult = cColMixTypeRGBCMY;
@@ -736,16 +804,17 @@ end
 -- ColorPresetCreate
 -- *************************************************************
 
-local function ColorPresetCreate(inNo,inGroupNo,inName,inGroupName,inColMixType)
+local function ColorPresetCreate(inNo,inGroupItem,inName)
 	local myResult = true; -- Assume we ill make it
-	local myPresetNo = getPresetNo(inNo,inGroupNo);
-	log("[ColorPresetCreate] Creating preset no " .. myPresetNo .. " for group " .. inGroupName .. " ColMixType=" .. inColMixType);
-	if ( inColMixType == cColMixTypeWheelFixed ) then
+	local myPresetNo = getPresetNo(inNo,inGroupItem.mNo);
+	log("[ColorPresetCreate] Creating preset no " .. myPresetNo .. " for group " .. inGroupItem.mName .. " ColMixType=" .. inGroupItem.mColMixType);
+	if ( inGroupItem.mColMixType == cColMixTypeWheelFixed ) then
 		-- We will try to set the dmx values to the wheel as defined in the wheel definition. 
 		-- This is fuzzy and may not work with all fixtures since it depends a lot on how their listing is.
-		local myDmxValue = getGroupColorWheelDmxValueForSlotName(inGroupNo,inGroupName,inColMixType,inName)
+		local myDmxValue = getGroupColorWheelDmxValueForSlotName(inGroupItem,inName)
+		log("inName=" .. inName .. " myDmxValue=" .. tostring(myDmxValue));
 		if ( myDmxValue ~= nil ) then
-			C("Attribute \"Color1\" at absolute decimal8 " .. myDmxValue);
+			C("Attribute \"Color1\" at  " .. myDmxValue);
 		else
 			myResult = false;
 		end
@@ -754,7 +823,7 @@ local function ColorPresetCreate(inNo,inGroupNo,inName,inGroupName,inColMixType)
 		C("At Gel \"Ma\".\"" .. inName .. "\"" );
 	end
 	C("Store Preset 'Color'." .. myPresetNo .. " /Selective /o" );
-	C("Label Preset 'Color'." .. myPresetNo .. " \"" .. inGroupName.. "(" .. inName .. ")\"" );
+	C("Label Preset 'Color'." .. myPresetNo .. " \"" .. inGroupItem.mName.. "(" .. inName .. ")\"" );
 	return myResult;
 end
 
@@ -1349,6 +1418,7 @@ local function LayoutItemSetPositionAndSize(inLayoutNo,inItemNo,inX,inY,inWidth,
 	if inVisibleName ~= nil then
 		C("Set Layout " .. inLayoutNo .. "." .. inItemNo .. " Property \"VisibilityObjectName\" " ..  inVisibleName .. " Executor");
 	end
+	C("Set Layout " .. inLayoutNo .. "." .. inItemNo .. " Property \"VisibilityIndicatorBar\" 0");
 end
 
 -- *************************************************************
@@ -1402,7 +1472,7 @@ local function CreateGridEntry(inNo,inGroupItem)
 
 	-- Create Color Presets
 	C("SelFix Group " .. myGroupNo );
-	if ( ColorPresetCreate(inNo,myGroupNo,myGelName,myGroupName,inGroupItem.mColMixType) == true ) then
+	if ( ColorPresetCreate(inNo,inGroupItem,myGelName) == true ) then
 		-- Create sequence from preset
 		SequenceCreate(inNo,myGroupNo,myGelName,myGroupName);
 
