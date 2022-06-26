@@ -951,24 +951,32 @@ local function MacroDelayCreate(inNo,inGroupNo,inName,inGroupName)
 	-- Store our current state in a console user variable
 	gParams.mVar.mDelayDirStateMaxNo = inGroupNo;
 	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mDelayDirStateNamePrefix .. gParams.mVar.mDelayDirStateMaxNo .. ")\" Command \"SetUserVar " .. gParams.mVar.mDelayDirStateNamePrefix .. gParams.mVar.mDelayDirStateMaxNo .. " '" .. myMacroNo .. "'\"");
-
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"Group '" .. inGroupName .. "'\"");
+	
 	myCmdString = "Attribute 'ColorRGB_R' at delay " .. myDelayString .. " at fade " .. myFadeString
 	myCmdString = myCmdString .. "; Attribute 'ColorRGB_G' at delay " .. myDelayString .. " at fade " .. myFadeString
 	myCmdString = myCmdString .. "; Attribute 'ColorRGB_B' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_C' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_RY' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_W' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_G' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_UV' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_GY' at delay " .. myDelayString .. " at fade " .. myFadeString
-	
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"" .. myCmdString ..  "\"");
+	
+	myCmdString = "Attribute 'ColorRGB_RY' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_W' at delay " .. myDelayString .. " at fade " .. myFadeString
+	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"" .. myCmdString ..  "\"");
+	
+	myCmdString = "Attribute 'ColorRGB_C' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_M' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_Y' at delay " .. myDelayString .. " at fade " .. myFadeString
+	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"" .. myCmdString ..  "\"");
+	
+	myCmdString = "Attribute 'ColorRGB_UV' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attribute 'ColorRGB_GY' at delay " .. myDelayString .. " at fade " .. myFadeString	
+	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"" .. myCmdString ..  "\"");
+	
 	-- Unfortunately the behaviour of the different approaches of removing the absolute values changes unpredictably from grandMA3 Release Version to Version.
 	-- So this has to be adjusted on every release until they find a convenient solution for this.
 	-- C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"off absolute\""); -- This has been working until version 1.4.0.2, after that it knocks out the delay and fade values as well...However, the syntax of the command could be intended to do it this way :)
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"off FeatureGroup 'Color'.'RGB' Absolute\""); -- This seems to work with version 1.4.0.2 and newer, it knocks out the absolute values and keeps the fade and delay values by not touching the other programmer values.
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"store preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " /selective /m\"");
+
 
 	for myPos=1,gParams.mMaxDelayMacroNo,1 do
 		local myImagePos = gParams.mImage.mBaseExecNo + myPos + getGroupOffset(inGroupNo) + gParams.mMaxGelNo;
@@ -1672,7 +1680,7 @@ local function CgInstall()
 	log("[CgInstall] Installing colorgrid");
 	local myProgress = StartProgress("Installing Magic ColorGrid");
 	prepare_console();
-	
+
 	-- Prepare Image pool
 	PrepareImages();
 	-- Install colorgrid for each group we have found
@@ -1687,12 +1695,10 @@ local function CgInstall()
 				CreateGridEntry(myEntryNo,myGroupItem);
 				myEntryNoBackup = myEntryNo;
 			end
-
 			-- Create the delay macros if we are rgb or cmy, otherwise that does not make sense.
 			if ( myGroupItem.mColMixType == cColMixTypeRGBCMY ) then
 				CreateDelayMacros(myEntryNoBackup,myGroupNo,myGroupName);
 			end
-			
 			-- Create Label for layout view
 			LabelCreate(myGroupNo,nil);
 			gParams.mColorGrid.mCurrentRowNo = gParams.mColorGrid.mCurrentRowNo + 1;
@@ -1734,8 +1740,9 @@ local function CgInstall()
 	C("Go+ macro " .. gParams.mMacro.mColorExecModeMacroNo);
 	
 	StopProgress(myProgress);
-	
+
 	MessageBox(CreateDialogFinish());
+
 	log("[CgInstall] Finished successfully");
 end
 
