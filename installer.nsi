@@ -29,7 +29,7 @@ Page instfiles
 ;--------------------------------
 
  Function .onInit
-	StrCpy $MA3_VERSION "1.6.3"
+	StrCpy $MA3_VERSION "1.7.2"
  FunctionEnd
 
 
