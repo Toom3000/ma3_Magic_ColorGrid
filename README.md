@@ -25,7 +25,7 @@ This plugin creates a ColorGrid for the grandMA3
 * Copy the files in lib_images/ to 
   * <YOUR_INSTALLATION_DRIVE>:\ProgramData\MALightingTechnology\gma3_library\media\images\
 * Copy the Magic_ColorGrid folder in lib_plugins/ to 
-  * <YOUR_INSTALLATION_DRIVE>:\ProgramData\MALightingTechnology\gma3_1.6.3\shared\resource\lib_plugins
+  * <YOUR_INSTALLATION_DRIVE>:\ProgramData\MALightingTechnology\gma3_library\datapools\plugins
 * Prepare your showfile
   * Patch fixtures
   * Arrange the fixtures using 3d or selectiongrid 
