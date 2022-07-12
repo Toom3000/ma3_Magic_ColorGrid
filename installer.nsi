@@ -2,8 +2,6 @@
 
 ;--------------------------------
 
-Var MA3_VERSION	
-
 ; The name of the installer
 Name "ma3_MagicColorGrid_Installer"
 
@@ -17,7 +15,7 @@ RequestExecutionLevel user
 Unicode True
 
 ; The default installation directory
-InstallDir $%PROGRAMDATA%\MALightingTechnology
+InstallDir $%PROGRAMDATA%\MALightingTechnology\gma3_library
 
 ;--------------------------------
 
@@ -28,31 +26,23 @@ Page instfiles
 
 ;--------------------------------
 
- Function .onInit
-	StrCpy $MA3_VERSION "1.7.2"
- FunctionEnd
-
-
 Function .onVerifyInstDir
-    IfFileExists $INSTDIR\gma3_library\*.* Path1Good
+    IfFileExists $INSTDIR\*.* Path1Good
       Abort ; if $INSTDIR is not a winamp directory, don't let us install there
 Path1Good:
-	IfFileExists $INSTDIR\gma3_$MA3_VERSION\*.* Path2Good
-      Abort ; if $INSTDIR is not a winamp directory, don't let us install there
-Path2Good:
-  FunctionEnd
+FunctionEnd
 
 ; The stuff to install
 
 Section "" ;No components page, name is not important
 
   ; Set output path to the installation directory.
-  SetOutPath $INSTDIR\gma3_library\media\images
+  SetOutPath $INSTDIR\media\images
   
   ; Put file there
   File lib_images\*
   
-  SetOutPath $INSTDIR\gma3_1.6.3\shared\resource\lib_plugins
+  SetOutPath $INSTDIR\datapools\plugins
   
   File /r lib_plugins\*.*
   
