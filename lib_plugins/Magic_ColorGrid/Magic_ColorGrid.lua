@@ -243,6 +243,20 @@ local function log(inText)
 end
 
 -- *************************************************************
+-- waitForCommandsFinished
+--
+-- This is complete bullshit. However, unfortunately this is 
+-- needed since from version 1.7.2.2 on too may and too fast execution 
+-- of lua commands tend to cause a application crash.
+-- *************************************************************
+
+local clock = os.clock
+local function waitForCommandsFinished()
+  local t0 = clock()
+  while clock() - t0 < 1 do end
+end
+
+-- *************************************************************
 -- prepare_console
 -- *************************************************************
 
@@ -369,7 +383,7 @@ end
 local function getUiChannelIdxForAttributeName(inFixtureIndex,inAttributeName)
 	local myResult = nil;
 	local myAttrIdx = GetAttributeIndex(inAttributeName);
-	log("myAttrIdx=" .. myAttrIdx);
+	log("myAttrIdx=" .. myAttrIdx .. " myAttrName=" .. inAttributeName .. " inFixtureIndex=" .. inFixtureIndex);
 	if myAttrIdx ~= nil then
 		myResult = GetUIChannelIndex(inFixtureIndex, myAttrIdx);
 		log("myResult=" .. tostring(myResult));
@@ -392,8 +406,10 @@ local function groupGetFixtureShortName(inGroupNo)
 	local myFixtureIndex = SelectionFirst(true);
 	local mySubFixture = GetSubfixture(myFixtureIndex);
 	local myName = mySubFixture.name;
+	local myShortName = mySubFixture.shortname;
 	-- This is dirty but i could not help myself in properly finding a way to 
 	-- get a connection between fixtures and fixture types
+	log("myName=" .. tostring(myName) .. "myShortname=" .. tostring(myShortName));
 	if ( string.len(myName) > 2) then
 		myResult = string.sub(myName,0,string.len(myName)-2);
 	end
@@ -410,12 +426,30 @@ local function getFixtureTypeByName(inName)
 	local myFixtureType = myPools.Fixturetype;
 	for myKey,myValue in ipairs(myFixtureType) do
 		-- This is probed out and seems to work at the moment. Also it is possible to obtain the full name in the .name child
-		log("inName=" .. inName .. " name=" .. myValue.name .." shortname=" .. myValue.shortname);
-		if ( myValue.shortname == inName ) then
+		log("inName=\"" .. inName .. "\" name=\"" .. myValue.name .."\" shortname=\"" .. myValue.shortname .. "\"");
+		if ( myValue.shortname == inName or myValue.name == inName ) then
 			log("Match");
 			myResult = myValue;
 		end
 	end	
+	return myResult;
+end
+
+-- *************************************************************
+-- getFixtureTypeByGroup
+--
+-- Returns the fixture type of the first fixture in the group
+-- *************************************************************
+
+local function getFixtureTypeByGroup(inGroupNo)
+	C("Clear" );
+	C("SelFix Group " .. inGroupNo );
+	local myResult = nil;
+	local myFixtureIndex = SelectionFirst(true);
+	local mySubFixture = GetSubfixture(myFixtureIndex);
+	if ( mySubFixture ~= nil ) then
+		myResult = mySubFixture.fixturetype;	
+	end
 	return myResult;
 end
 
@@ -627,8 +661,9 @@ local function groupGetColMixType(inGroupNo)
 				log("Warning: group " .. inGroupNo .. " does not have any color attributes.");
 				myResult = cColMixTypeNone;
 			else
+				-- MA seems to map the rgb values much better than i could do it on my own.
 				myResult = cColMixTypeWheelFixed;
-				dummy_test(myColor1UiChannelIdx);
+				-- dummy_test(myColor1UiChannelIdx);
 			end
 		else
 			myResult = cColMixTypeRGBCMY;
@@ -664,7 +699,8 @@ end
 local function RegisterGroupItem(inGroup)
 	local myColMixType = groupGetColMixType(inGroup.no);
 	local myFixtureName = groupGetFixtureShortName(inGroup.no);
-	local myFixtureType = getFixtureTypeByName(myFixtureName);
+--	local myFixtureType = getFixtureTypeByName(myFixtureName);
+	local myFixtureType = getFixtureTypeByGroup(inGroup.no);
 	local myFixtureTypeName = "unknown";
 	if ( myFixtureType ~= nil ) then
 		myFixtureTypeName = myFixtureType.name;
@@ -808,20 +844,8 @@ local function ColorPresetCreate(inNo,inGroupItem,inName)
 	local myResult = true; -- Assume we ill make it
 	local myPresetNo = getPresetNo(inNo,inGroupItem.mNo);
 	log("[ColorPresetCreate] Creating preset no " .. myPresetNo .. " for group " .. inGroupItem.mName .. " ColMixType=" .. inGroupItem.mColMixType);
-	if ( inGroupItem.mColMixType == cColMixTypeWheelFixed ) then
-		-- We will try to set the dmx values to the wheel as defined in the wheel definition. 
-		-- This is fuzzy and may not work with all fixtures since it depends a lot on how their listing is.
-		local myDmxValue = getGroupColorWheelDmxValueForSlotName(inGroupItem,inName)
-		log("inName=" .. inName .. " myDmxValue=" .. tostring(myDmxValue));
-		if ( myDmxValue ~= nil ) then
-			C("Attribute \"Color1\" at  " .. myDmxValue);
-		else
-			myResult = false;
-		end
-	else
-		-- In here we handle the cmy and rgb colors
-		C("At Gel \"Ma\".\"" .. inName .. "\"" );
-	end
+	-- In here we handle the cmy and rgb colors
+	C("At Gel \"Ma\".\"" .. inName .. "\"" );
 	C("Store Preset 'Color'." .. myPresetNo .. " /Selective /o" );
 	C("Label Preset 'Color'." .. myPresetNo .. " \"" .. inGroupItem.mName.. "(" .. inName .. ")\"" );
 	return myResult;
@@ -953,22 +977,22 @@ local function MacroDelayCreate(inNo,inGroupNo,inName,inGroupName)
 	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mDelayDirStateNamePrefix .. gParams.mVar.mDelayDirStateMaxNo .. ")\" Command \"SetUserVar " .. gParams.mVar.mDelayDirStateNamePrefix .. gParams.mVar.mDelayDirStateMaxNo .. " '" .. myMacroNo .. "'\"");
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"Group '" .. inGroupName .. "'\"");
 	
-	myCmdString = "Attribute 'ColorRGB_R' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_G' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_B' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = "Attr 'ColorRGB_R' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attr 'ColorRGB_G' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attr 'ColorRGB_B' at delay " .. myDelayString .. " at fade " .. myFadeString
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"" .. myCmdString ..  "\"");
 	
-	myCmdString = "Attribute 'ColorRGB_RY' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_W' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = "Attr 'ColorRGB_RY' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attr 'ColorRGB_W' at delay " .. myDelayString .. " at fade " .. myFadeString
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"" .. myCmdString ..  "\"");
 	
-	myCmdString = "Attribute 'ColorRGB_C' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_M' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_Y' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = "Attr 'ColorRGB_C' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attr 'ColorRGB_M' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attr 'ColorRGB_Y' at delay " .. myDelayString .. " at fade " .. myFadeString
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"" .. myCmdString ..  "\"");
 	
-	myCmdString = "Attribute 'ColorRGB_UV' at delay " .. myDelayString .. " at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attribute 'ColorRGB_GY' at delay " .. myDelayString .. " at fade " .. myFadeString	
+	myCmdString = "Attr 'ColorRGB_UV' at delay " .. myDelayString .. " at fade " .. myFadeString
+	myCmdString = myCmdString .. "; Attr 'ColorRGB_GY' at delay " .. myDelayString .. " at fade " .. myFadeString	
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" Command \"" .. myCmdString ..  "\"");
 	
 	-- Unfortunately the behaviour of the different approaches of removing the absolute values changes unpredictably from grandMA3 Release Version to Version.
@@ -1703,6 +1727,7 @@ local function CgInstall()
 			LabelCreate(myGroupNo,nil);
 			gParams.mColorGrid.mCurrentRowNo = gParams.mColorGrid.mCurrentRowNo + 1;
 		end
+		waitForCommandsFinished();
 	end
 
 	-- Add "All" Grid items
@@ -1714,6 +1739,8 @@ local function CgInstall()
 	myGroupNo = myGroupNo + 1;
 	gParams.mColorGrid.mCurrentRowNo = gParams.mColorGrid.mCurrentRowNo + 1;
 	
+	waitForCommandsFinished();
+	
 	-- Create delay time buttons
 	CreateFadeGroup(myGroupNo);
 	myGroupNo = myGroupNo + 1;
@@ -1723,6 +1750,8 @@ local function CgInstall()
 	CreateColorExecModeGroup(myGroupNo);
 	myGroupNo = myGroupNo + 1;
 	gParams.mColorGrid.mCurrentRowNo = gParams.mColorGrid.mCurrentRowNo + 1;
+	
+	waitForCommandsFinished();
 	
 	-- Create signature label
 	LabelCreate(myGroupNo,cColorGridVersionText,600,nil,200,nil);
