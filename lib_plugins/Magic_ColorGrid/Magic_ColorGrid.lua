@@ -121,8 +121,8 @@ local gParams = {
 	},
 	mMacro = {
 		mBaseNo = 2000,
-		mWaitTime = "0.1", -- was 0.1
-		mDelayWaitTime = "0.3", -- was 0.3
+		mWaitTime = 0.1, -- was 0.1
+		mDelayWaitTime = 0.2, -- was 0.3
 		mDelayOffMacroNo = 0,
 		mAllColorWhiteMacroNo = 0,
 		mDelayTimeZeroMacroNo = 0,
@@ -1046,8 +1046,6 @@ local function MacroDelayCreateAll(inNo,inName,inMaxGroups)
 	local myAppearanceNo = getAppearanceNo(inNo,0);
 	local myActiveStorageNo = gParams.mImage.mDelayOffActiveNo;
 	local myInactiveStorageNo = gParams.mImage.mDelayOffInactiveNo;
-	local myCmdString = ""
-	local myExecMacroNo;
 	if inName == ">" then
 		myActiveStorageNo = gParams.mImage.mDelayRightActiveNo;
 		myInactiveStorageNo = gParams.mImage.mDelayRightInactiveNo;
@@ -1081,11 +1079,10 @@ local function MacroDelayCreateAll(inNo,inName,inMaxGroups)
 	for myKey,myGroup in pairs(gParams.mGroup.mGroups) do
 		if ( myGroup.mInclude == true and myGroup.mColMixType == cColMixTypeRGBCMY) then
 			local myGroupNo = myGroup.mNo;
-			myExecMacroNo = getMacroNo(inNo,myGroupNo); 
-			myCmdString = myCmdString .. "go+ macro " .. myExecMacroNo .. ";"; 
+			local myExecMacroNo = getMacroNo(inNo,myGroupNo); 
+			C("store macro " .. myMacroNo .. " \"GoMacro" .. myExecMacroNo .. "\" \"Command\" \"go+ macro " .. myExecMacroNo .. "\" Property \"wait\" " .. gParams.mMacro.mDelayWaitTime);
 		end
 	end
-	C("store macro " .. myMacroNo .. " \"GoMacro" .. myExecMacroNo .. "\" \"Command\" \"" .. myCmdString .. "\"");
 
 	C("Label macro " .. myMacroNo .. " \"" .. inName .. "\"" )
 	RegisterGridItem(0,inNo,nil,nil,nil,nil,cGridTypeMacro,myMacroNo,gParams.mLayout.mVisibilityObjectName);
@@ -1192,15 +1189,11 @@ end
 -- *************************************************************
 
 local function MacroUpdateDelayDir(inMacroNo)
-	local myCmdString = "";
-	local myGroupsString = "";
 	for myGroupNo=1,gParams.mVar.mDelayDirStateMaxNo do
 		if ( gParams.mGroup.mGroups[myGroupNo].mColMixType == cColMixTypeRGBCMY ) then
-			myCmdString = myCmdString .. "go+ macro $" .. gParams.mVar.mDelayDirStateNamePrefix .. myGroupNo .. ";"
-			myGroupsString = myGroupsString .. myGroupNo .. "_"
+			C("store macro " .. inMacroNo .. " \"GoMacro" .. gParams.mVar.mDelayDirStateNamePrefix .. myGroupNo .. "\" \"Command\" \"go+ macro $" .. gParams.mVar.mDelayDirStateNamePrefix .. myGroupNo .. "\" Property \"wait\" " .. gParams.mMacro.mDelayWaitTime );
 		end
 	end
-	C("store macro " .. inMacroNo .. " \"GoMacro" .. gParams.mVar.mDelayDirStateNamePrefix .. myGroupsString .. "\" \"Command\" \"" .. myCmdString .. "\"");
 end
 
 -- *************************************************************
