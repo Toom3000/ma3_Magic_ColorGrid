@@ -87,13 +87,14 @@ local gParams = {
 		mSeqInvalidOffsetNameValInactive = 0,
 	},
 	mGroup = {
-		mMaxCheckNo = 128,
+		mMaxCheckNo = 256,
 		mCurrentGroupNo = 0,
 		mGroups = {
 		},
 	},
 	mImage = {
 		mBaseExecNo = 2000,
+		mImageNo = 32,
 		mBaseStorageNo = 0,
 		mBaseStorageCurrentPos = 0,
 		mGridItemInactiveNo,
@@ -641,6 +642,44 @@ local function dummy_test(inColorUiChannelIdx)
 end
 
 -- *************************************************************
+-- fixtureGetColMixType
+-- *************************************************************
+
+local function fixtureGetColMixType(inFixtureIndex)
+	local myResult = cColMixTypeNone;
+	local myRgbRUiChannelIdx = getUiChannelIdxForAttributeName(inFixtureIndex,"ColorRGB_R");
+	local myRgbCUiChannelIdx = getUiChannelIdxForAttributeName(inFixtureIndex,"ColorRGB_C");
+	local myColor1UiChannelIdx = getUiChannelIdxForAttributeName(inFixtureIndex,"Color1");
+	if ( myRgbCUiChannelIdx == nil ) and ( myRgbRUiChannelIdx == nil) then
+		if ( myColor1UiChannelIdx ~= nil ) then
+			-- MA seems to map the rgb values much better than i could do it on my own.
+			myResult = cColMixTypeWheelFixed;
+		end
+	else
+		myResult = cColMixTypeRGBCMY;
+	end
+	return myResult;
+end
+
+-- *************************************************************
+-- GetLowestSubfixtureId
+-- *************************************************************
+
+local function GetLowestSubfixtureId(inFixtureIndex)
+	local myLowestSubFixture = nil;
+	local myNextSubfixture = GetSubfixture(inFixtureIndex);
+	log("[GetLowestSubfixtureId] inFixtureIndex=" .. tostring(inFixtureIndex ));
+	while myNextSubfixture ~= nil do
+		myLowestSubFixture = myNextSubfixture;
+		myNextSubfixture = GetSubfixture(myLowestSubFixture);		
+		log("[GetLowestSubfixtureId] myLowestSubFixture=" .. tostring(myLowestSubFixture ));
+		log("[GetLowestSubfixtureId] myLowestSubFixture.name=" .. tostring(myLowestSubFixture.name ));
+		log("[GetLowestSubfixtureId] myLowestSubFixture.index=" .. tostring(myLowestSubFixture.index ));
+	end
+	return myLowestSubFixture.index;
+end
+
+-- *************************************************************
 -- groupGetColMixType
 -- *************************************************************
 
@@ -649,25 +688,18 @@ local function groupGetColMixType(inGroupNo)
 	C("Clear" );
 	C("SelFix Group " .. inGroupNo );
 	local myFixtureIndex = SelectionFirst(true);
-	local mySubFixture = GetSubfixture(myFixtureIndex);
-	debug_logmetatable(mySubFixture);
-	if ( myFixtureIndex ~= nil ) then
-		local myRgbRUiChannelIdx = getUiChannelIdxForAttributeName(myFixtureIndex,"ColorRGB_R");
-		local myRgbCUiChannelIdx = getUiChannelIdxForAttributeName(myFixtureIndex,"ColorRGB_C");
-		local myColor1UiChannelIdx = getUiChannelIdxForAttributeName(myFixtureIndex,"Color1");
-		if ( myRgbCUiChannelIdx == nil ) and ( myRgbRUiChannelIdx == nil) then
-			if ( myColor1UiChannelIdx == nil ) then
-				-- This fixture does not seem to have any color attribute at all
-				log("Warning: group " .. inGroupNo .. " does not have any color attributes.");
-				myResult = cColMixTypeNone;
-			else
-				-- MA seems to map the rgb values much better than i could do it on my own.
-				myResult = cColMixTypeWheelFixed;
-				-- dummy_test(myColor1UiChannelIdx);
-			end
-		else
-			myResult = cColMixTypeRGBCMY;
-		end
+	-- We will first check the main fixture, if not color capabilities are found we will process all subfixtures.
+	myResult = fixtureGetColMixType(myFixtureIndex);
+	if ( myResult == cColMixTypeNone ) then
+		local mySubFixtureIndex = GetLowestSubfixtureId(myFixtureIndex);
+		log("[groupGetColMixType] Processing subfixture " .. mySubFixtureIndex );
+		myResult = fixtureGetColMixType(mySubFixtureIndex);		
+	end
+	
+	if ( myResult == cColMixTypeNone ) then
+		-- This fixture does not seem to have any color attribute at all
+		log("Warning: group " .. inGroupNo .. " does not have any color attributes.");
+		myResult = cColMixTypeNone;
 	end
 	return myResult;
 end
@@ -1189,10 +1221,19 @@ end
 -- *************************************************************
 
 local function MacroUpdateDelayDir(inMacroNo)
-	for myGroupNo=1,gParams.mVar.mDelayDirStateMaxNo do
-		if ( gParams.mGroup.mGroups[myGroupNo].mColMixType == cColMixTypeRGBCMY ) then
-			C("store macro " .. inMacroNo .. " \"GoMacro" .. gParams.mVar.mDelayDirStateNamePrefix .. myGroupNo .. "\" \"Command\" \"go+ macro $" .. gParams.mVar.mDelayDirStateNamePrefix .. myGroupNo .. "\" Property \"wait\" " .. gParams.mMacro.mDelayWaitTime );
+	for myGroupEntryNo=1,gParams.mVar.mDelayDirStateMaxNo do
+		-- log("[MacroUpdateDelayDir] myGroupNo=" .. myGroupNo)
+		-- log("[MacroUpdateDelayDir] gParams.mGroup.mGroups[" .. myGroupNo .. "]=" .. tostring(gParams.mGroup.mGroups[myGroupNo]));
+		-- log("[MacroUpdateDelayDir] gParams.mGroup.mGroups[" .. myGroupNo .. "].mColMixType=" .. tostring(gParams.mGroup.mGroups[myGroupNo].mColMixType));
+		if ( gParams.mGroup.mGroups[myGroupEntryNo] == nil ) then
+			log("[MacroUpdateDelayDir] Critical error gParams.mGroup.mGroups[" .. myGroupEntryNo .. "]=" .. tostring(gParams.mGroup.mGroups[myGroupEntryNo]));
+		else
+			if ( gParams.mGroup.mGroups[myGroupEntryNo].mColMixType == cColMixTypeRGBCMY ) then
+				local myGroupNo = gParams.mGroup.mGroups[myGroupEntryNo].mNo;
+				C("store macro " .. inMacroNo .. " \"GoMacro" .. gParams.mVar.mDelayDirStateNamePrefix .. myGroupNo .. "\" \"Command\" \"go+ macro $" .. gParams.mVar.mDelayDirStateNamePrefix .. myGroupNo .. "\" Property \"wait\" " .. gParams.mMacro.mDelayWaitTime );
+			end
 		end
+		
 	end
 end
 
@@ -1895,7 +1936,6 @@ local function initDefaults()
 	gParams.mGroup.mGroups = {};
 	gParams.mColorGrid.mGrid = {};	
 	gParams.mColorGrid.mCurrentRowNo = 1;
-	gParams.mImage.mBaseStorageNo = gParams.mImage.mBaseExecNo + 1024;
 end
 
 -- *************************************************************
@@ -1919,13 +1959,12 @@ local function main(inDisplayHandle,inArguments)
 	elseif  (myRet.result == 1) then
 		myRet = MessageBox(CreateMainDialogExpert());	
 		gParams.mGroup.mMaxCheckNo = tonumber(myRet.inputs[cDialogMaximumGroupNumberText]);
-		gParams.mImage.mBaseStorageNo = tonumber(myRet.inputs[cDialogImageText]);
+		gParams.mImage.mBaseExecNo = tonumber(myRet.inputs[cDialogImageText]);
 		gParams.mAppearance.mBaseNo = tonumber(myRet.inputs[cDialogImageText]);
 		gParams.mPreset.mBaseNo = tonumber(myRet.inputs[cDialogImageText]);
 		gParams.mSequence.mBaseNo = tonumber(myRet.inputs[cDialogImageText]);
 		gParams.mMacro.mBaseNo = tonumber(myRet.inputs[cDialogImageText]);
 		gParams.mLayout.mBaseNo = tonumber(myRet.inputs[cDialogImageText]);
-		gParams.mImage.mBaseStorageNo = gParams.mImage.mBaseExecNo + 1024;
 	else
 		goto exit;
 	end
@@ -1935,6 +1974,7 @@ local function main(inDisplayHandle,inArguments)
 		local x = Confirm('Warning','No groups selected. At least one group is needed to work properly',inDisplayHandle)
 		if x == false then return; end
 	else
+		gParams.mImage.mBaseStorageNo = gParams.mImage.mBaseExecNo + ( gParams.mGroup.mCurrentGroupNo * (gParams.mMaxGelNo + gParams.mMaxDelayMacroNo + gParams.mMaxDelayTimeNo) );
 		if  (myRet.result == 0) then
 			CgInstall();
 		end
