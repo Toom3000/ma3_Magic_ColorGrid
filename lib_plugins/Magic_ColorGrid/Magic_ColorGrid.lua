@@ -880,6 +880,9 @@ local function ColorPresetCreate(inNo,inGroupItem,inName)
 	C("At Gel \"Ma\".\"" .. inName .. "\"" );
 	C("Store Preset 'Color'." .. myPresetNo .. " /Selective /o" );
 	C("Label Preset 'Color'." .. myPresetNo .. " \"" .. inGroupItem.mName.. "(" .. inName .. ")\"" );
+	-- Turn this into a recipe
+	C("Move Preset 'Color'." .. myPresetNo .. " At Preset 'Color'." .. myPresetNo .. ".1" );
+	C("Store Preset 'Color'." .. myPresetNo .. ".1 /Selection \"\" /Phaserdata \"No\" /MAtricks \"No\"" );
 	return myResult;
 end
 
@@ -906,13 +909,13 @@ local function SequenceCreate(inNo,inGroupNo,inName,inGroupName)
 	local myPresetNo = getPresetNo(inNo,inGroupNo);
 	log("[SequenceCreate] Creating sequence no " .. mySeqNo .. " for group " .. inGroupName);
 	-- Since we have no conditional operators in shell we will use this trick to make sure our sequence wont be triggered again after being fired.
-	mySeqCmd = "SetUserVar " .. gParams.mVar.mColorValStateNamePrefix .. inGroupNo .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValActive;
+	mySeqCmd = "SetUserVar " .. gParams.mVar.mColorValStateNamePrefix .. inGroupNo .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValActive .. "'";
 	C("At Preset 'Color'." .. myPresetNo);
 	C("Delete seq " .. mySeqNo .. "/NC");
 	C("Store seq " .. mySeqNo);
 
 	-- Add cmds to handle the images according to the sequence status
-	C("set sequence " .. mySeqNo .. " cue 1 Property \"Cmd\" \"" .. mySeqCmd .. "\"" )
+	C("set sequence " .. mySeqNo .. " cue 1 Property \"Command\" \"" .. mySeqCmd .. "\"" )
 
 	C("Label Sequence " .. mySeqNo .. " \"" .. inGroupName .. "(" .. inName .. ")\"" )
 end
@@ -1016,37 +1019,14 @@ local function MacroDelayCreate(inNo,inGroupNo,inName,inGroupName)
 	-- Store our current state in a console user variable
 	gParams.mVar.mDelayDirStateMaxNo = inGroupNo;
 	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mDelayDirStateNamePrefix .. gParams.mVar.mDelayDirStateMaxNo .. ")\" \"Command\" \"SetUserVar " .. gParams.mVar.mDelayDirStateNamePrefix .. gParams.mVar.mDelayDirStateMaxNo .. " '" .. myMacroNo .. "'\"");
-	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"Group '" .. inGroupName .. "'\"");
-	
-	myCmdString = "Set Selection Matricks 'XWings' '" .. myMatricksXWings .. "'"
-	myCmdString = myCmdString .. "; Set Selection Matricks 'DelayFromX' " .. myDelayFromXString
-	myCmdString = myCmdString .. "; Set Selection Matricks 'DelayToX' " .. myDelayToXString
---	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"" .. myCmdString ..  "\"");
-	
-	myCmdString = myCmdString .. "; Attr 'ColorRGB_R' at at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attr 'ColorRGB_G' at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attr 'ColorRGB_B' at fade " .. myFadeString
---	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"" .. myCmdString ..  "\"");
-	
-	myCmdString = myCmdString .. "; Attr 'ColorRGB_RY' at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attr 'ColorRGB_W' at fade " .. myFadeString
---	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"" .. myCmdString ..  "\"");
-	
-	myCmdString = myCmdString .. "; Attr 'ColorRGB_C' at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attr 'ColorRGB_M' at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attr 'ColorRGB_Y' at fade " .. myFadeString
---	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"" .. myCmdString ..  "\"");
-	
-	myCmdString = myCmdString .. "; Attr 'ColorRGB_UV' at fade " .. myFadeString
-	myCmdString = myCmdString .. "; Attr 'ColorRGB_GY' at fade " .. myFadeString	
+
+	myCmdString = "Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'XWings' '" .. myMatricksXWings .. "'"
+	myCmdString = myCmdString .. "; Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'DelayFromX' " .. myDelayFromXString
+	myCmdString = myCmdString .. "; Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'DelayToX' " .. myDelayToXString
+	myCmdString = myCmdString .. "; Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'FadeFromX' " .. myFadeString
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"" .. myCmdString ..  "\"");
 	
-	-- Unfortunately the behaviour of the different approaches of removing the absolute values changes unpredictably from grandMA3 Release Version to Version.
-	-- So this has to be adjusted on every release until they find a convenient solution for this.
-	-- C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"off absolute\""); -- This has been working until version 1.4.0.2, after that it knocks out the delay and fade values as well...However, the syntax of the command could be intended to do it this way :)
-	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"off FeatureGroup 'Color'.'RGB' Absolute\""); -- This seems to work with version 1.4.0.2 and newer, it knocks out the absolute values and keeps the fade and delay values by not touching the other programmer values.
-	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"store preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " /selective /m\"");
-	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"Reset Selection Matricks\"");
+	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"cook preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " /m\"");
 
 
 	for myPos=1,gParams.mMaxDelayMacroNo,1 do
@@ -1059,9 +1039,6 @@ local function MacroDelayCreate(inNo,inGroupNo,inName,inGroupName)
 			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myTargetActiveStorageNo .. " at image 'Images'." .. myImagePos .. "\"");
 		end
 	end
-
-	--C("store macro " .. myMacroNo .. " \"Wait\" \"Command\" \"cd\"  Property \"wait\" " .. gParams.mMacro.mWaitTime);
-	--C("store macro " .. myMacroNo .. " \"GoSeq" .. gParams.mVar.mColorValStateNamePrefix .. inGroupNo .. "\" \"Command\" \"go+ seq $" .. gParams.mVar.mColorValStateNamePrefix .. inGroupNo .. "\"");
 
 	-- Add cmds to handle the images according to the sequence status
 	C("Label macro " .. myMacroNo .. " \"" .. inGroupName .. "(" .. inName .. ")\"" )
@@ -1766,6 +1743,7 @@ local function CgInstall()
 
 	-- Prepare Image pool
 	PrepareImages();
+	
 	-- Install colorgrid for each group we have found
 	for myKey,myGroupItem in pairs(gParams.mGroup.mGroups) do
 		myGroupIncluded = myGroupItem.mInclude;
@@ -1788,7 +1766,7 @@ local function CgInstall()
 		end
 		waitForCommandsFinished();
 	end
-
+	
 	-- Add "All" Grid items
 	CreateAllGroup(myGroupNo);
 	myGroupNo = myGroupNo + 1;
@@ -1832,6 +1810,7 @@ local function CgInstall()
 	MessageBox(CreateDialogFinish());
 
 	log("[CgInstall] Finished successfully");
+::exit::
 end
 
 -- *************************************************************
@@ -1936,6 +1915,7 @@ local function initDefaults()
 	gParams.mGroup.mGroups = {};
 	gParams.mColorGrid.mGrid = {};	
 	gParams.mColorGrid.mCurrentRowNo = 1;
+	gParams.mImage.mBaseStorageCurrentPos = 0;
 end
 
 -- *************************************************************
@@ -1974,7 +1954,14 @@ local function main(inDisplayHandle,inArguments)
 		local x = Confirm('Warning','No groups selected. At least one group is needed to work properly',inDisplayHandle)
 		if x == false then return; end
 	else
-		gParams.mImage.mBaseStorageNo = gParams.mImage.mBaseExecNo + ( gParams.mGroup.mCurrentGroupNo * (gParams.mMaxGelNo + gParams.mMaxDelayMacroNo + gParams.mMaxDelayTimeNo) );
+		gParams.mImage.mBaseStorageNo = gParams.mImage.mBaseExecNo + ( (gParams.mGroup.mCurrentGroupNo + 1) * (gParams.mMaxGelNo + gParams.mMaxDelayMacroNo + gParams.mMaxDelayTimeNo) ) + 32;
+		
+		-- log("gParams.mImage.mBaseStorageNo = " .. gParams.mImage.mBaseStorageNo)
+		-- log("gParams.mImage.mBaseExecNo = " .. gParams.mImage.mBaseExecNo)
+		-- log("gParams.mGroup.mCurrentGroupNo = " .. gParams.mGroup.mCurrentGroupNo)
+		-- log("gParams.mMaxGelNo = " .. gParams.mMaxGelNo)
+		-- log("gParams.mMaxDelayMacroNo = " .. gParams.mMaxDelayMacroNo)
+		-- log("gParams.mMaxDelayTimeNo = " .. gParams.mMaxDelayTimeNo)
 		if  (myRet.result == 0) then
 			CgInstall();
 		end
