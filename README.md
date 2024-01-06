@@ -20,7 +20,7 @@ This plugin creates a ColorGrid for the grandMA3
 * ColorFlip Feature to flip between the last and current colors
 
 ## Compatibility
-* Tested on **grandMA3 Version 1.8.8.2**
+* Tested on **grandMA3 Version 1.9.7.0**
 
 ## Installation
 * Copy the files in lib_images/ to 
