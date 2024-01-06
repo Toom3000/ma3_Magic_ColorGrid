@@ -79,6 +79,7 @@ local gParams = {
 		mDelayDirStateMaxNo = 0,
 		mColorValStateNamePrefix = "CG_COLORVAL_STATE_GROUP_",
 		mColorValStateNameLastPrefix = "CG_COLORVAL_STATE_GROUP_LAST_",
+		mColorValStateNameFlipPrefix = "CG_COLORVAL_STATE_GROUP_TEMP_",
 		mColorValStateMaxNo = 0,
 		mColorExecModeName = "CG_COLOREXEC_MODE",
 		mColorExecModeDefaultVal = "direct",
@@ -305,7 +306,7 @@ local function ImagePrepare(inName,inFileName)
 		myImageNo = gParams.mImage.mBaseStorageNo;
 	end
 	log("[ImagePrepare] Handling image no " .. myImageNo );
-	C("Delete Image 'Images'." .. tostring(myImageNo));
+	C("Delete Image 'Images'." .. tostring(myImageNo) .. " /nc /o");
 	C("Import Image 'Images'." .. tostring(myImageNo) .. " /File '" .. inFileName .. "' /nc /o" );
 	C("set image 'Images'." ..  tostring(myImageNo) .. " Property \"Name\" " .. inName );
 	gParams.mImage.mBaseStorageCurrentPos = myImageNo + 1;
@@ -318,7 +319,7 @@ end
 
 local function getGroupOffset(inGroupNo)
 	local myGroupNo = tonumber(inGroupNo) or 0
-	return myGroupNo * (gParams.mMaxGelNo + gParams.mMaxDelayMacroNo + 1 );
+	return myGroupNo * (gParams.mMaxGelNo + gParams.mMaxDelayMacroNo + 3 );
 end
 
 -- *************************************************************
@@ -384,8 +385,8 @@ end
 local function getUiChannelIdxForAttributeName(inFixtureIndex,inAttributeName)
 	local myResult = nil;
 	local myAttrIdx = GetAttributeIndex(inAttributeName);
-	log("myAttrIdx=" .. myAttrIdx .. " myAttrName=" .. inAttributeName .. " inFixtureIndex=" .. inFixtureIndex);
-	if myAttrIdx ~= nil then
+	if myAttrIdx ~= nil and inFixtureIndex ~= nil then
+		log("myAttrIdx=" .. myAttrIdx .. " myAttrName=" .. inAttributeName .. " inFixtureIndex=" .. inFixtureIndex);
 		myResult = GetUIChannelIndex(inFixtureIndex, myAttrIdx);
 		log("myResult=" .. tostring(myResult));
 	end
@@ -406,13 +407,15 @@ local function groupGetFixtureShortName(inGroupNo)
 	local myResult = nil;
 	local myFixtureIndex = SelectionFirst(true);
 	local mySubFixture = GetSubfixture(myFixtureIndex);
-	local myName = mySubFixture.name;
-	local myShortName = mySubFixture.shortname;
-	-- This is dirty but i could not help myself in properly finding a way to 
-	-- get a connection between fixtures and fixture types
-	log("myName=" .. tostring(myName) .. "myShortname=" .. tostring(myShortName));
-	if ( string.len(myName) > 2) then
-		myResult = string.sub(myName,0,string.len(myName)-2);
+	if mySubFixture ~= nil then
+		local myName = mySubFixture.name;
+		local myShortName = mySubFixture.shortname;
+		-- This is dirty but i could not help myself in properly finding a way to 
+		-- get a connection between fixtures and fixture types
+		log("myName=" .. tostring(myName) .. "myShortname=" .. tostring(myShortName));
+		if ( string.len(myName) > 2) then
+			myResult = string.sub(myName,0,string.len(myName)-2);
+		end
 	end
 	return myResult;
 end
@@ -666,6 +669,7 @@ end
 -- *************************************************************
 
 local function GetLowestSubfixtureId(inFixtureIndex)
+	local myResult = nil;
 	local myLowestSubFixture = nil;
 	local myNextSubfixture = GetSubfixture(inFixtureIndex);
 	log("[GetLowestSubfixtureId] inFixtureIndex=" .. tostring(inFixtureIndex ));
@@ -676,7 +680,10 @@ local function GetLowestSubfixtureId(inFixtureIndex)
 		log("[GetLowestSubfixtureId] myLowestSubFixture.name=" .. tostring(myLowestSubFixture.name ));
 		log("[GetLowestSubfixtureId] myLowestSubFixture.index=" .. tostring(myLowestSubFixture.index ));
 	end
-	return myLowestSubFixture.index;
+	if myLowestSubFixture ~= nil then
+		myResult = myLowestSubFixture.index
+	end
+	return myResult;
 end
 
 -- *************************************************************
@@ -692,8 +699,10 @@ local function groupGetColMixType(inGroupNo)
 	myResult = fixtureGetColMixType(myFixtureIndex);
 	if ( myResult == cColMixTypeNone ) then
 		local mySubFixtureIndex = GetLowestSubfixtureId(myFixtureIndex);
-		log("[groupGetColMixType] Processing subfixture " .. mySubFixtureIndex );
-		myResult = fixtureGetColMixType(mySubFixtureIndex);		
+		if mySubFixtureIndex ~= nil then
+			log("[groupGetColMixType] Processing subfixture " .. mySubFixtureIndex );
+			myResult = fixtureGetColMixType(mySubFixtureIndex);		
+		end
 	end
 	
 	if ( myResult == cColMixTypeNone ) then
@@ -737,7 +746,7 @@ local function RegisterGroupItem(inGroup)
 	if ( myFixtureType ~= nil ) then
 		myFixtureTypeName = myFixtureType.name;
 	end
-	log("[RegisterGroupItem] Registering group item no " .. inGroup.no .. "(" .. inGroup.name .. ")" .. " ColMixType=" .. myColMixType .. " FixtureShortName=" .. myFixtureName .. " FixtureName=" .. myFixtureTypeName);
+	log("[RegisterGroupItem] Registering group item no " .. inGroup.no .. "(" .. inGroup.name .. ")" .. " ColMixType=" .. myColMixType .. " FixtureShortName=" .. tostring(myFixtureName) .. " FixtureName=" .. myFixtureTypeName);
 	myGroupItem = {
 		mNo = inGroup.no,
 		mName = inGroup.name,
@@ -909,13 +918,13 @@ local function SequenceCreate(inNo,inGroupNo,inName,inGroupName)
 	local myPresetNo = getPresetNo(inNo,inGroupNo);
 	log("[SequenceCreate] Creating sequence no " .. mySeqNo .. " for group " .. inGroupName);
 	-- Since we have no conditional operators in shell we will use this trick to make sure our sequence wont be triggered again after being fired.
-	mySeqCmd = "SetUserVar " .. gParams.mVar.mColorValStateNamePrefix .. inGroupNo .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValActive .. "'";
+	--	mySeqCmd = " SetUserVar " .. gParams.mVar.mColorValStateNamePrefix .. inGroupNo .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValActive .. "'"
 	C("At Preset 'Color'." .. myPresetNo);
 	C("Delete seq " .. mySeqNo .. "/NC");
 	C("Store seq " .. mySeqNo);
 
 	-- Add cmds to handle the images according to the sequence status
-	C("set sequence " .. mySeqNo .. " cue 1 Property \"Command\" \"" .. mySeqCmd .. "\"" )
+	-- C("set sequence " .. mySeqNo .. " cue 1 Property \"Command\" \"" .. mySeqCmd .. "\"" )
 
 	C("Label Sequence " .. mySeqNo .. " \"" .. inGroupName .. "(" .. inName .. ")\"" )
 end
@@ -940,6 +949,7 @@ local function MacroCreate(inNo,inGroupNo,inName,inGroupName)
 
 	-- Store our current state in a console user variable
 	gParams.mVar.mColorValStateMaxNo = inGroupNo;
+	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mColorValStateNameLastPrefix .. gParams.mVar.mColorValStateMaxNo ..	")\" \"Command\" \"SetUserVar " .. gParams.mVar.mColorValStateNameLastPrefix .. gParams.mVar.mColorValStateMaxNo .. " $" .. gParams.mVar.mColorValStateNamePrefix .. gParams.mVar.mColorValStateMaxNo .. " \"");
 	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mColorValStateNamePrefix .. gParams.mVar.mColorValStateMaxNo ..	")\" \"Command\" \"SetUserVar " .. gParams.mVar.mColorValStateNamePrefix .. gParams.mVar.mColorValStateMaxNo .. " '" .. mySeqNo .. "'\"");
 
 	C("store macro " .. myMacroNo .. " \"GoSeq" .. mySeqNo .. "\" \"Command\" \"go+ seq $" .. gParams.mVar.mSeqInvalidOffsetName .. "$" .. gParams.mVar.mColorValStateNamePrefix .. gParams.mVar.mColorValStateMaxNo .. "\"");
@@ -949,10 +959,10 @@ local function MacroCreate(inNo,inGroupNo,inName,inGroupName)
 		if myExecNo ~= myImagePos then
 			myInactivateText = myInactivateText .. " image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos);
 		else
-			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. gParams.mImage.mGridItemActiveNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .. "\"");
+			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. gParams.mImage.mGridItemActiveNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .. " /o\"");
 		end
 	end
-	C("store macro " .. myMacroNo .. " \"InactivateImage \" \"Command\" \"copy image 'Images'." .. gParams.mImage.mGridItemInactiveNo .. " at " .. myInactivateText .. "\"");
+	C("store macro " .. myMacroNo .. " \"InactivateImage \" \"Command\" \"copy image 'Images'." .. gParams.mImage.mGridItemInactiveNo .. " at " .. myInactivateText .. " /o\"");
 
 	-- Add cmds to handle the images according to the sequence status
 	C("Label macro " .. myMacroNo .. " \"" .. inGroupName .. "(" .. inName .. ")\"" )
@@ -1034,9 +1044,9 @@ local function MacroDelayCreate(inNo,inGroupNo,inName,inGroupName)
 		local myTargetInactiveStorageNo = gParams.mImage.mDelayLeftInactiveNo + myPos - 1;
 		local myTargetActiveStorageNo =gParams.mImage.mDelayLeftActiveNo + myPos - 1;
 		if myExecNo ~= myImagePos then
-			C("store macro " .. myMacroNo .. " \"InactivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myTargetInactiveStorageNo .. " at image 'Images'." .. myImagePos .."\"");
+			C("store macro " .. myMacroNo .. " \"InactivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myTargetInactiveStorageNo .. " at image 'Images'." .. myImagePos .." /o\"");
 		else
-			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myTargetActiveStorageNo .. " at image 'Images'." .. myImagePos .. "\"");
+			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myTargetActiveStorageNo .. " at image 'Images'." .. myImagePos .. " /o\"");
 		end
 	end
 
@@ -1121,8 +1131,8 @@ local function MacroColorExecModeCreate(inNo,inName,inGroupNo)
 	C("Store macro " .. myMacroNo);
 	C("set macro " .. myMacroNo .. " property \"appearance\" " ..  myAppearanceNo);
 
-	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mSeqInvalidOffsetName .. ")\" \"Command\" \"SetUserVar " ..  gParams.mVar.mSeqInvalidOffsetName .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValInactive .. "'; copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. myExecNo .. "; Label macro " .. myMacroNo .. " 'direct'\" Property 'wait' 'Go'");
-	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mSeqInvalidOffsetName .. ")\" \"Command\" \"SetUserVar " ..  gParams.mVar.mSeqInvalidOffsetName .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValActive   .. "'; copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. myExecNo .. "; Label macro " .. myMacroNo .. " 'manual'\"\" Property 'wait' 'Go'");
+	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mSeqInvalidOffsetName .. ")\" \"Command\" \"SetUserVar " ..  gParams.mVar.mSeqInvalidOffsetName .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValInactive .. "'; copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o; Label macro " .. myMacroNo .. " 'direct'\" Property 'wait' 'Go'");
+	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mSeqInvalidOffsetName .. ")\" \"Command\" \"SetUserVar " ..  gParams.mVar.mSeqInvalidOffsetName .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValActive   .. "'; copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o; Label macro " .. myMacroNo .. " 'manual'\"\" Property 'wait' 'Go'");
 
 	C("Label macro " .. myMacroNo .. " \"direct\"" )
 	gParams.mMacro.mColorExecModeMacroNo = myMacroNo;
@@ -1181,12 +1191,12 @@ local function MacroColorExecModeTriggerCreate(inNo,inName,inGroupNo)
 
 	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mSeqInvalidOffsetName .. ")\" \"Command\" \"SetUserVar " ..  gParams.mVar.mSeqInvalidOffsetName .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValInactive .. "'\"");
 
-	C("store macro " .. myMacroNo .. " \"ActivateImage" .. myActiveStorageNo .. "\" \"Command\" \"copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. myExecNo .. "\"");
+	C("store macro " .. myMacroNo .. " \"ActivateImage" .. myActiveStorageNo .. "\" \"Command\" \"copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o\"");
 	-- We need to update the delay direction macros in order to make this active for the next color change
 	MacroGoSeqColor(myMacroNo);
 
 	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mSeqInvalidOffsetName .. ")\" \"Command\" \"SetUserVar " ..  gParams.mVar.mSeqInvalidOffsetName .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValActive .. "'\"");
-	C("store macro " .. myMacroNo .. " \"InactivateImage" .. myInactiveStorageNo .. "\" \"Command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. myExecNo .. "\"");
+	C("store macro " .. myMacroNo .. " \"InactivateImage" .. myInactiveStorageNo .. "\" \"Command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o\"");
 
 	C("Label macro " .. myMacroNo .. " \"" .. inName .. "\"" )
 	RegisterGridItem(gParams.mColorGrid.mCurrentRowNo,inNo,100,nil,200,nil,cGridTypeMacro,myMacroNo,nil);
@@ -1243,9 +1253,9 @@ local function MacroFadeTimeCreate(inNo,inName,inGroupNo)
 		local myImagePos = gParams.mImage.mBaseExecNo + myPos + getGroupOffset(inGroupNo);
 		local myGroupPos = myPos + getGroupOffset(inGroupNo);
 		if myExecNo ~= myImagePos then
-			C("store macro " .. myMacroNo .. " \"InactivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .."\"");
+			C("store macro " .. myMacroNo .. " \"InactivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .." /o\"");
 		else
-			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .. "\"");
+			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .. " /o\"");
 		end
 	end
 
@@ -1300,9 +1310,9 @@ local function MacroDelaySwapCreate(inNo,inName,inGroupNo)
 		local myImagePos = gParams.mImage.mBaseExecNo + myPos + getGroupOffset(inGroupNo);
 		local myGroupPos = myPos + getGroupOffset(inGroupNo);
 		if myExecNo ~= myImagePos then
-			C("store macro " .. myMacroNo .. " \"InactivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .."\"");
+			C("store macro " .. myMacroNo .. " \"InactivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .." /o\"");
 		else
-			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .. "\"");
+			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .. " /o\"");
 		end
 	end
 	
@@ -1348,9 +1358,9 @@ local function MacroDelayTimeCreate(inNo,inName,inGroupNo)
 		local myImagePos = gParams.mImage.mBaseExecNo + myPos + getGroupOffset(inGroupNo);
 		local myGroupPos = myPos + getGroupOffset(inGroupNo);
 		if myExecNo ~= myImagePos then
-			C("store macro " .. myMacroNo .. " \"InactivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .."\"");
+			C("store macro " .. myMacroNo .. " \"InactivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .." /o\"");
 		else
-			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .. "\"");
+			C("store macro " .. myMacroNo .. " \"ActivateImage" .. myImagePos .. "\" \"Command\" \"copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. (gParams.mImage.mBaseExecNo + myGroupPos) .. " /o\"");
 		end
 	end
 	
@@ -1393,21 +1403,21 @@ local function MacroAllCreate(inNo,inGroupNo,inName,inMaxGroups)
 	C("set macro " .. myMacroNo .. " property \"appearance\" " ..  myAppearanceNo);
 
 	-- Activate all seqs in advance to speed up the color change and afterwards call the colorchange macro
-	for myKey,myGroup in pairs(gParams.mGroup.mGroups) do
-		if ( myGroup.mInclude == true ) then
-			local myGroupNo = myGroup.mNo;
-			local myExecSeqNo = getSeqNo(inNo,myGroupNo);
-			C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mColorValStateNamePrefix .. myGroupNo ..	")\" \"Command\" \"SetUserVar " .. gParams.mVar.mColorValStateNamePrefix .. myGroupNo .. " '" .. myExecSeqNo .. "'\"");
-		end
-	end
+	-- for myKey,myGroup in pairs(gParams.mGroup.mGroups) do
+		-- if ( myGroup.mInclude == true ) then
+			-- local myGroupNo = myGroup.mNo;
+			-- local myExecSeqNo = getSeqNo(inNo,myGroupNo);
+			-- C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mColorValStateNamePrefix .. myGroupNo ..	")\" \"Command\" \"SetUserVar " .. gParams.mVar.mColorValStateNamePrefix .. myGroupNo .. " '" .. myExecSeqNo .. "'\"");
+		-- end
+	-- end
 	
-	for myKey,myGroup in pairs(gParams.mGroup.mGroups) do
-		if ( myGroup.mInclude == true ) then
-			local myGroupNo = myGroup.mNo;
-			local myExecSeqNo = getSeqNo(inNo,myGroupNo);
-			C("store macro " .. myMacroNo .. " \"GoSeq" .. myExecSeqNo .. "\" \"Command\" \"go+ seq $" .. gParams.mVar.mSeqInvalidOffsetName .. "$" .. gParams.mVar.mColorValStateNamePrefix .. myGroupNo .. "\"");
-		end
-	end
+	-- for myKey,myGroup in pairs(gParams.mGroup.mGroups) do
+		-- if ( myGroup.mInclude == true ) then
+			-- local myGroupNo = myGroup.mNo;
+			-- local myExecSeqNo = getSeqNo(inNo,myGroupNo);
+			-- C("store macro " .. myMacroNo .. " \"GoSeq" .. myExecSeqNo .. "\" \"Command\" \"go+ seq $" .. gParams.mVar.mSeqInvalidOffsetName .. "$" .. myExecSeqNo .. "\"");
+		-- end
+	-- end
 	
 	-- Activate all macros that are bound to this color on all groups
 	for myKey,myGroup in pairs(gParams.mGroup.mGroups) do
@@ -1422,6 +1432,56 @@ local function MacroAllCreate(inNo,inGroupNo,inName,inMaxGroups)
 	-- Add cmds to handle the images according to the sequence status
 	C("Label macro " .. myMacroNo .. " \"" .. inName .. "\"" )
 	RegisterGridItem(inGroupNo,inNo,nil,nil,nil,nil,cGridTypeMacro,myMacroNo,gParams.mLayout.mVisibilityObjectName);
+end
+
+-- *************************************************************
+-- MacroColorFlipAllCreate
+-- *************************************************************
+
+local function MacroColorFlipAllCreate(inNo,inGroupNo,inMaxGroups)
+	local myMacroNo = getMacroNo(inNo,inGroupNo); 
+	local myAppearanceNo = getAppearanceNo(inNo,inGroupNo);
+	local myExecNo = getExecNo(inNo,inGroupNo);
+	local myActiveStorageNo = gParams.mImage.mGridItemActiveNo;
+	local myInactiveStorageNo = gParams.mImage.mGridItemInactiveNo;
+	local myExecMacroNo;
+	local myCmdString = "";
+	log("[MacroAllCreate] Creating macro no " .. myMacroNo);
+
+	-- Set default image at execute location
+	ImageCopy(myInactiveStorageNo,myExecNo);
+
+	-- Prepare appearance
+	AppearanceCreate(inNo,inGroupNo,gMaGels[1].mColor);
+
+	C("Delete Macro " .. myMacroNo .. "/NC");
+	C("Store macro " .. myMacroNo);
+	C("set macro " .. myMacroNo .. " property \"appearance\" " ..  myAppearanceNo);
+
+	-- C("store macro " .. myMacroNo .. " \"ActivateImage" .. myActiveStorageNo .. "\" \"Command\" \"copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o\"");
+	for myKey,myGroup in pairs(gParams.mGroup.mGroups) do
+		if ( myGroup.mInclude == true ) then
+			local myGroupNo = myGroup.mNo;
+			local myExecSeqNo = getSeqNo(inNo,myGroupNo);
+			C("store macro " .. myMacroNo .. " \"GoSeq $" .. gParams.mVar.mColorValStateNameLastPrefix .. myGroupNo .. "\" \"Command\" \"go+ seq $" .. gParams.mVar.mColorValStateNameLastPrefix .. myGroupNo .. "\"");
+		end
+	end
+	
+	-- Activate all macros that are bound to this color on all groups
+	for myKey,myGroup in pairs(gParams.mGroup.mGroups) do
+		if ( myGroup.mInclude == true ) then
+			local myGroupNo = myGroup.mNo;
+			myExecMacroNo = getMacroNo(inNo,myGroupNo); 
+			myCmdString = myCmdString .. "go+ macro $" .. gParams.mVar.mColorValStateNameLastPrefix .. myGroupNo .. "; "
+		end
+	end
+	C("store macro " .. myMacroNo .. " \"GoMacro" .. myExecMacroNo .. "\" \"Command\" \"" .. myCmdString .. "\"");
+
+	-- C("store macro " .. myMacroNo .. " \"InactivateImage" .. myInactiveStorageNo .. "\" \"Command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o\"");
+
+	-- Add cmds to handle the images according to the sequence status
+	C("Label macro " .. myMacroNo .. " \"ColorFlip\"" )
+	RegisterGridItem(gParams.mColorGrid.mCurrentRowNo,inNo,50,nil,250,nil,cGridTypeMacro,myMacroNo,nil);
 end
 
 -- *************************************************************
@@ -1442,7 +1502,7 @@ local function LabelCreate(inGroupNo,inName,inX,inY,inWidth,inHeight)
 	end
 	log("[LabelCreate] Creating label macro " .. myMacroNo .. " for group no " .. inGroupNo .. "(" .. myGroupName .. ")");
 	-- Set default image at execute location
-	C("Delete Image 'Images'." .. gParams.mImage.mBaseExecNo + getGroupOffset(inGroupNo) .. "/NC");
+	C("Delete Image 'Images'." .. gParams.mImage.mBaseExecNo + getGroupOffset(inGroupNo) .. " /NC");
 	-- Prepare appearance
 	AppearanceCreate(0,inGroupNo,gMaGels[1].mColor);
 	-- Create empty macro as label...Workaround since i have no clue how to do it otherwise
@@ -1464,7 +1524,7 @@ local function LabelCreateAll(inGroupNo)
 	local myGroupName = "ALL";
 	log("[LabelCreateAll] Creating label macro " .. myMacroNo .. " for group no " .. inGroupNo .. "(" .. myGroupName .. ")");
 	-- Set default image at execute location
-	C("Delete Image 'Images'." .. gParams.mImage.mBaseExecNo + getGroupOffset(inGroupNo) .. "/NC");
+	C("Delete Image 'Images'." .. gParams.mImage.mBaseExecNo + getGroupOffset(inGroupNo) .. " /NC");
 	-- Prepare appearance
 	AppearanceCreate(0,inGroupNo,gMaGels[1].mColor);
 	-- Create empty macro as label...Workaround since i have no clue how to do it otherwise
@@ -1676,6 +1736,18 @@ local function CreateColorExecModeGroup(inGroupNo)
 end
 
 -- *************************************************************
+-- CreateColorFlipModeGroup
+-- *************************************************************
+
+local function CreateColorFlipModeGroup(inGroupNo)
+	log("[CreateColorFlipModeGroup] Installing group (ColorFlip)");
+	local myNo = 0;
+	myNo = myNo + 1;
+	MacroColorFlipAllCreate(myNo,inGroupNo);	
+	LabelCreate(inGroupNo,"ColorFlip");
+end
+
+-- *************************************************************
 -- CreateDelaySwapGroup
 -- *************************************************************
 
@@ -1766,7 +1838,7 @@ local function CgInstall()
 		end
 		waitForCommandsFinished();
 	end
-	
+
 	-- Add "All" Grid items
 	CreateAllGroup(myGroupNo);
 	myGroupNo = myGroupNo + 1;
@@ -1782,9 +1854,14 @@ local function CgInstall()
 	CreateFadeGroup(myGroupNo);
 	myGroupNo = myGroupNo + 1;
 	gParams.mColorGrid.mCurrentRowNo = gParams.mColorGrid.mCurrentRowNo + 1;
-	
+		
 	-- Create color exec mode buttons
 	CreateColorExecModeGroup(myGroupNo);
+	myGroupNo = myGroupNo + 1;
+	gParams.mColorGrid.mCurrentRowNo = gParams.mColorGrid.mCurrentRowNo + 1;
+
+	-- Create color flip mode buttons
+	CreateColorFlipModeGroup(myGroupNo);
 	myGroupNo = myGroupNo + 1;
 	gParams.mColorGrid.mCurrentRowNo = gParams.mColorGrid.mCurrentRowNo + 1;
 	
@@ -1795,6 +1872,7 @@ local function CgInstall()
 	
 	-- Actually create our colorgrid
 	LayoutCreate();
+
 
 	-- Set default delaytime variable
 	C("SetUserVar " .. gParams.mVar.mDelaytimeName .. " \"" .. gParams.mVar.mDelaytimeDefaultVal .. "\"");
@@ -1954,14 +2032,14 @@ local function main(inDisplayHandle,inArguments)
 		local x = Confirm('Warning','No groups selected. At least one group is needed to work properly',inDisplayHandle)
 		if x == false then return; end
 	else
-		gParams.mImage.mBaseStorageNo = gParams.mImage.mBaseExecNo + ( (gParams.mGroup.mCurrentGroupNo + 1) * (gParams.mMaxGelNo + gParams.mMaxDelayMacroNo + gParams.mMaxDelayTimeNo) ) + 32;
+		gParams.mImage.mBaseStorageNo = gParams.mImage.mBaseExecNo + ( (gParams.mGroup.mCurrentGroupNo + 2) * (gParams.mMaxGelNo + gParams.mMaxDelayMacroNo + gParams.mMaxDelayTimeNo) ) + 64;
 		
-		-- log("gParams.mImage.mBaseStorageNo = " .. gParams.mImage.mBaseStorageNo)
-		-- log("gParams.mImage.mBaseExecNo = " .. gParams.mImage.mBaseExecNo)
-		-- log("gParams.mGroup.mCurrentGroupNo = " .. gParams.mGroup.mCurrentGroupNo)
-		-- log("gParams.mMaxGelNo = " .. gParams.mMaxGelNo)
-		-- log("gParams.mMaxDelayMacroNo = " .. gParams.mMaxDelayMacroNo)
-		-- log("gParams.mMaxDelayTimeNo = " .. gParams.mMaxDelayTimeNo)
+		log("gParams.mImage.mBaseStorageNo = " .. gParams.mImage.mBaseStorageNo)
+		log("gParams.mImage.mBaseExecNo = " .. gParams.mImage.mBaseExecNo)
+		log("gParams.mGroup.mCurrentGroupNo = " .. gParams.mGroup.mCurrentGroupNo)
+		log("gParams.mMaxGelNo = " .. gParams.mMaxGelNo)
+		log("gParams.mMaxDelayMacroNo = " .. gParams.mMaxDelayMacroNo)
+		log("gParams.mMaxDelayTimeNo = " .. gParams.mMaxDelayTimeNo)
 		if  (myRet.result == 0) then
 			CgInstall();
 		end
