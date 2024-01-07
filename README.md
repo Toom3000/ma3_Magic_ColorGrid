@@ -18,6 +18,7 @@ This plugin creates a ColorGrid for the grandMA3
 * Delaytime adjustment 
 * Fadetime adjustment
 * ColorFlip Feature to flip between the last and current colors
+  * Flip is also available as sequence with rate master
 
 ## Compatibility
 * Tested on **grandMA3 Version 1.9.7.0**
