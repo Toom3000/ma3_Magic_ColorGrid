@@ -120,6 +120,7 @@ local gParams = {
 	},
 	mSequence = {
 		mBaseNo = 2000,
+		mColorFlip = 0,
 	},
 	mMacro = {
 		mBaseNo = 2000,
@@ -137,6 +138,11 @@ local gParams = {
 		mHeight = 50,
 		mVisibilityObjectName = "off",
 		mLayoutName = "Magic ColorGrid",
+	},
+	mColorFlip = {
+		mRateMasterExecNo = 298,
+		mRateMasterNo = 15,
+		mSeqExecNo = 198,
 	},
 	mMaxGelNo = 13,
 	mMaxDelayMacroNo = 5,
@@ -1140,6 +1146,61 @@ local function MacroColorExecModeCreate(inNo,inName,inGroupNo)
 end
 
 -- *************************************************************
+-- MacroColorFlipGoCreate
+-- *************************************************************
+
+local function MacroColorFlipGoCreate(inNo,inName,inGroupNo,inFlipMacroNo)
+	local myExecNo = getExecNo(inNo,inGroupNo);
+	local myMacroNo = getMacroNo(inNo,inGroupNo); 
+	local myAppearanceNo = getAppearanceNo(inNo,inGroupNo);
+	local mySeqNo = getSeqNo(inNo,inGroupNo);
+	local myActiveStorageNo = gParams.mImage.mGridItemActiveNo;
+	local myInactiveStorageNo = gParams.mImage.mGridItemInactiveNo;
+	local myExecutorNo = gParams.mColorFlip.mSeqExecNo;
+	local mySpeedExecutorNo = gParams.mColorFlip.mRateMasterExecNo;
+	local myRateMasterNo = gParams.mColorFlip.mRateMasterNo;
+
+	log("[MacroColorFlipGoCreate] Creating " .. inName .. " color flip go mode macro no " .. myMacroNo);
+
+	-- Set default image at execute location
+	ImageCopy(myInactiveStorageNo,myExecNo);
+
+	-- Prepare appearance
+	AppearanceCreate(inNo,inGroupNo,gMaGels[1].mColor);
+
+	-- Create color flip seq
+	C("ClearAll")
+	C("Delete seq " .. mySeqNo .. "/NC");
+	C("Store seq " .. mySeqNo)
+	C("set seq " .. mySeqNo .. " cue 1 \"trigtype\" \"Time\"")
+	C("set seq " .. mySeqNo .. " cue 1 \"trigtime\" \"1.0\"")
+	C("set seq " .. mySeqNo .. " cue 0 \"command\" \"copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o\"")
+	C("set seq " .. mySeqNo .. " cue 1 \"command\" \"go+ macro " .. inFlipMacroNo .. "\"")
+	C("set seq " .. mySeqNo .. " cue OffCue \"command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o\"")
+	C("set seq " .. mySeqNo .. " \"WrapAround\" 1")
+	C("set seq " .. mySeqNo .. " \"RateMaster\" Speed" .. myRateMasterNo)
+	C("Label Sequence " .. mySeqNo .. " \"Colorflip\"" )
+
+	-- Assign seq to X buttons
+	C("Assign seq " .. mySeqNo .. " at exec " .. myExecutorNo .. " /o")
+	C("set exec " .. myExecutorNo .. " property \"Key\" \"Toggle\"");
+	
+	-- Assign ratemaster to X button encoder
+	C("Assign master Speed." .. myRateMasterNo .. " at exec " .. mySpeedExecutorNo .. " /o")
+	C("set exec " .. mySpeedExecutorNo .. " property \"Key\" \"LearnSpeed\"");
+
+	C("Delete Macro " .. myMacroNo .. "/NC");
+	C("Store macro " .. myMacroNo);
+	C("set macro " .. myMacroNo .. " property \"appearance\" " ..  myAppearanceNo);
+
+	C("store macro " .. myMacroNo .. " \"Toggle seq\" \"Command\" \" Toggle seq " .. mySeqNo .. "\"");
+
+	C("Label macro " .. myMacroNo .. " \"go\"" )
+	gParams.mSequence.mColorFlip = mySeqNo;
+	RegisterGridItem(gParams.mColorGrid.mCurrentRowNo,inNo,nil,nil,nil,nil,cGridTypeMacro,myMacroNo,nil);
+end
+
+-- *************************************************************
 -- MacroUpdateColor
 -- *************************************************************
 
@@ -1480,8 +1541,9 @@ local function MacroColorFlipAllCreate(inNo,inGroupNo,inMaxGroups)
 	-- C("store macro " .. myMacroNo .. " \"InactivateImage" .. myInactiveStorageNo .. "\" \"Command\" \"copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o\"");
 
 	-- Add cmds to handle the images according to the sequence status
-	C("Label macro " .. myMacroNo .. " \"ColorFlip\"" )
-	RegisterGridItem(gParams.mColorGrid.mCurrentRowNo,inNo,50,nil,250,nil,cGridTypeMacro,myMacroNo,nil);
+	C("Label macro " .. myMacroNo .. " \"Flip\"" )
+	RegisterGridItem(gParams.mColorGrid.mCurrentRowNo,inNo,100,nil,200,nil,cGridTypeMacro,myMacroNo,nil);
+	return myMacroNo
 end
 
 -- *************************************************************
@@ -1742,8 +1804,9 @@ end
 local function CreateColorFlipModeGroup(inGroupNo)
 	log("[CreateColorFlipModeGroup] Installing group (ColorFlip)");
 	local myNo = 0;
-	myNo = myNo + 1;
-	MacroColorFlipAllCreate(myNo,inGroupNo);	
+	local myFlipMacroNo;
+	myFlipMacroNo = MacroColorFlipAllCreate(2,inGroupNo);	
+	MacroColorFlipGoCreate(1,"FlipGo",inGroupNo,myFlipMacroNo);
 	LabelCreate(inGroupNo,"ColorFlip");
 end
 
@@ -1882,6 +1945,7 @@ local function CgInstall()
 	C("Go+ macro " .. gParams.mMacro.mFadeTimeZeroMacroNo);
 	C("Go+ macro " .. gParams.mMacro.mAllColorWhiteMacroNo);
 	C("Go+ macro " .. gParams.mMacro.mColorExecModeMacroNo);
+	C("Off seq " .. gParams.mSequence.mColorFlip)
 	
 	StopProgress(myProgress);
 
@@ -1915,6 +1979,9 @@ end
 local cDialogImageText="Base storage no";
 local cDialogColorCapableGroupsText="Color capable groups";
 local cDialogMaximumGroupNumberText="Maximum group number";
+local cDialogColorFlipRateMasterNo="Color Flip rate master no";
+local cDialogColorFlipRateMasterExecNo="Color Flip rate master exec no";
+local cDialogColorFlipSeqExecNo="Color Flip seq exec no";
 
 -- *************************************************************
 -- getNonColorGroupInfo
@@ -1979,6 +2046,9 @@ local function CreateMainDialogExpert()
 			{name=cDialogColorCapableGroupsText, value=myColorGroups, blackFilter="", whiteFilter="0123456789,", vkPlugin="TextInput"},
 			{name=cDialogMaximumGroupNumberText, value=gParams.mGroup.mMaxCheckNo, blackFilter="", whiteFilter="0123456789", vkPlugin="TextInputNumOnly"},
 			{name=cDialogImageText, value=gParams.mImage.mBaseExecNo, blackFilter="", whiteFilter="0123456789", vkPlugin="TextInputNumOnly"},
+			{name=cDialogColorFlipRateMasterNo, value=gParams.mColorFlip.mRateMasterNo, blackFilter="", whiteFilter="0123456789", vkPlugin="TextInputNumOnly"},
+			{name=cDialogColorFlipRateMasterExecNo, value=gParams.mColorFlip.mRateMasterExecNo, blackFilter="", whiteFilter="0123456789", vkPlugin="TextInputNumOnly"},
+			{name=cDialogColorFlipSeqExecNo, value=gParams.mColorFlip.mSeqExecNo, blackFilter="", whiteFilter="0123456789", vkPlugin="TextInputNumOnly"},
 		},
 	}
 	return myResult;
@@ -2023,6 +2093,9 @@ local function main(inDisplayHandle,inArguments)
 		gParams.mSequence.mBaseNo = tonumber(myRet.inputs[cDialogImageText]);
 		gParams.mMacro.mBaseNo = tonumber(myRet.inputs[cDialogImageText]);
 		gParams.mLayout.mBaseNo = tonumber(myRet.inputs[cDialogImageText]);
+		gParams.mColorFlip.mRateMasterNo = tonumber(myRet.inputs[cDialogColorFlipRateMasterNo]);
+		gParams.mColorFlip.mRateMasterExecNo = tonumber(myRet.inputs[cDialogColorFlipRateMasterExecNo]);
+		gParams.mColorFlip.mSeqExecNo = tonumber(myRet.inputs[cDialogColorFlipSeqExecNo]);
 	else
 		goto exit;
 	end
