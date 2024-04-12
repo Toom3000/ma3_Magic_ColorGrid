@@ -1137,8 +1137,11 @@ local function MacroColorExecModeCreate(inNo,inName,inGroupNo)
 	C("Store macro " .. myMacroNo);
 	C("set macro " .. myMacroNo .. " property \"appearance\" " ..  myAppearanceNo);
 
-	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mSeqInvalidOffsetName .. ")\" \"Command\" \"SetUserVar " ..  gParams.mVar.mSeqInvalidOffsetName .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValInactive .. "'; copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o; Label macro " .. myMacroNo .. " 'direct'\" Property 'wait' 'Go'");
-	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mSeqInvalidOffsetName .. ")\" \"Command\" \"SetUserVar " ..  gParams.mVar.mSeqInvalidOffsetName .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValActive   .. "'; copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o; Label macro " .. myMacroNo .. " 'manual'\"\" Property 'wait' 'Go'");
+	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mSeqInvalidOffsetName .. ")\" \"Command\" \"SetUserVar " ..  gParams.mVar.mSeqInvalidOffsetName .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValInactive .. "'; copy image 'Images'." .. myInactiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o; Label macro " .. myMacroNo .. " 'direct'\"");
+	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mSeqInvalidOffsetName .. ")\" \"Command\" \"SetUserVar " ..  gParams.mVar.mSeqInvalidOffsetName .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValActive   .. "'; copy image 'Images'." .. myActiveStorageNo .. " at image 'Images'." .. myExecNo .. " /o; Label macro " .. myMacroNo .. " 'manual'\"\"");
+	DataPool().Macros[myMacroNo][1].Wait = 'Go'
+	DataPool().Macros[myMacroNo][2].Wait = 'Go'
+	
 
 	C("Label macro " .. myMacroNo .. " \"direct\"" )
 	gParams.mMacro.mColorExecModeMacroNo = myMacroNo;
