@@ -21,7 +21,7 @@ This plugin creates a ColorGrid for the grandMA3
   * Flip is also available as sequence with rate master
 
 ## Compatibility
-* Tested on **grandMA3 Version 1.9.7.0**
+* Tested on **grandMA3 Version 2.0.0.4**
 
 ## Installation
 * Copy the files in lib_images/ to 
