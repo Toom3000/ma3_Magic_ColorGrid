@@ -1536,7 +1536,7 @@ local function MacroColorFlipAllCreate(inNo,inGroupNo,inMaxGroups)
 		if ( myGroup.mInclude == true ) then
 			local myGroupNo = myGroup.mNo;
 			myExecMacroNo = getMacroNo(inNo,myGroupNo); 
-			myCmdString = "go+ macro $" .. gParams.mVar.mColorValStateNameLastPrefix .. myGroupNo .. "; "
+			myCmdString = "go+ macro $" .. gParams.mVar.mColorValStateNameLastPrefix .. myGroupNo
 			C("store macro " .. myMacroNo .. " \"GoMacro" .. myExecMacroNo .. "\" \"Command\" \"" .. myCmdString .. "\"");
 		end
 	end
