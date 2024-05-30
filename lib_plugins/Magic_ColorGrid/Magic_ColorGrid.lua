@@ -1102,7 +1102,7 @@ local function MacroDelayCreateAll(inNo,inName,inMaxGroups)
 
 	-- Activate all macros that are bound to this delay on all groups
 	for myKey,myGroup in pairs(gParams.mGroup.mGroups) do
-		if ( myGroup.mInclude == true and myGroup.mColMixType == cColMixTypeRGBCMY) then
+		if ( myGroup.mInclude == true ) and ( myGroup.mColMixType == cColMixTypeRGBCMY ) then
 			local myGroupNo = myGroup.mNo;
 			local myExecMacroNo = getMacroNo(inNo,myGroupNo); 
 			C("store macro " .. myMacroNo .. " \"GoMacro" .. myExecMacroNo .. "\" \"Command\" \"go+ macro " .. myExecMacroNo .. "\" Property \"wait\" " .. gParams.mMacro.mDelayWaitTime);
@@ -1279,7 +1279,7 @@ local function MacroUpdateDelayDir(inMacroNo)
 		if ( gParams.mGroup.mGroups[myGroupEntryNo] == nil ) then
 			log("[MacroUpdateDelayDir] Critical error gParams.mGroup.mGroups[" .. myGroupEntryNo .. "]=" .. tostring(gParams.mGroup.mGroups[myGroupEntryNo]));
 		else
-			if ( gParams.mGroup.mGroups[myGroupEntryNo].mColMixType == cColMixTypeRGBCMY ) then
+			if (gParams.mGroup.mGroups[myGroupEntryNo].mInclude == true) and ( gParams.mGroup.mGroups[myGroupEntryNo].mColMixType == cColMixTypeRGBCMY ) then
 				local myGroupNo = gParams.mGroup.mGroups[myGroupEntryNo].mNo;
 				C("store macro " .. inMacroNo .. " \"GoMacro" .. gParams.mVar.mDelayDirStateNamePrefix .. myGroupNo .. "\" \"Command\" \"go+ macro $" .. gParams.mVar.mDelayDirStateNamePrefix .. myGroupNo .. "\" Property \"wait\" " .. gParams.mMacro.mDelayWaitTime );
 			end
@@ -1917,7 +1917,7 @@ local function CgInstall()
 	
 	waitForCommandsFinished();
 	
-	-- Create delay time buttons
+	-- Create fade time buttons
 	CreateFadeGroup(myGroupNo);
 	myGroupNo = myGroupNo + 1;
 	gParams.mColorGrid.mCurrentRowNo = gParams.mColorGrid.mCurrentRowNo + 1;
