@@ -891,13 +891,20 @@ local function ColorPresetCreate(inNo,inGroupItem,inName)
 	local myResult = true; -- Assume we ill make it
 	local myPresetNo = getPresetNo(inNo,inGroupItem.mNo);
 	log("[ColorPresetCreate] Creating preset no " .. myPresetNo .. " for group " .. inGroupItem.mName .. " ColMixType=" .. inGroupItem.mColMixType);
+	
 	-- In here we handle the cmy and rgb colors
+	C("Delete Preset 'Color'." .. myPresetNo .. " /nc" );
 	C("At Gel \"Ma\".\"" .. inName .. "\"" );
 	C("Store Preset 'Color'." .. myPresetNo .. " /Selective /o /nc" );
 	C("Label Preset 'Color'." .. myPresetNo .. " \"" .. inGroupItem.mName.. "(" .. inName .. ")\"" );
+	
 	-- Turn this into a recipe
 	C("Move Preset 'Color'." .. myPresetNo .. " At Preset 'Color'." .. myPresetNo .. ".1" );
-	C("Store Preset 'Color'." .. myPresetNo .. ".1 /Selection \"\" /Phaserdata \"No\" /MAtricks \"No\"" );
+	C("Set Preset 'Color'." .. myPresetNo .. ".1 Property \"FadeFromX\" 0"  );
+	C("Set Preset 'Color'." .. myPresetNo .. ".1 Property \"DelayFromX\" 0"  );
+	C("Set Preset 'Color'." .. myPresetNo .. ".1 Property \"DelayToX\" 0"  );
+	--C("Store Preset 'Color'." .. myPresetNo .. ".1 /Selection \"\" /Phaserdata \"No\" /MAtricks \"No\" /merge /nc");
+
 	return myResult;
 end
 
@@ -926,8 +933,13 @@ local function SequenceCreate(inNo,inGroupNo,inName,inGroupName)
 	-- Since we have no conditional operators in shell we will use this trick to make sure our sequence wont be triggered again after being fired.
 	--	mySeqCmd = " SetUserVar " .. gParams.mVar.mColorValStateNamePrefix .. inGroupNo .. " '" .. gParams.mVar.mSeqInvalidOffsetNameValActive .. "'"
 	C("At Preset 'Color'." .. myPresetNo);
+	C("EditRecipe Preset 'Color'." .. myPresetNo);
 	C("Delete seq " .. mySeqNo .. "/NC");
 	C("Store seq " .. mySeqNo);
+	C("Cook seq " .. mySeqNo .. " /merge /nc " );
+
+	-- Toggle recipe editing off
+	C("EditRecipe");
 
 	-- Add cmds to handle the images according to the sequence status
 	-- C("set sequence " .. mySeqNo .. " cue 1 Property \"Command\" \"" .. mySeqCmd .. "\"" )
@@ -985,6 +997,8 @@ local function MacroDelayCreate(inNo,inGroupNo,inName,inGroupName)
 	local myAppearanceNo = getAppearanceNo(inNo,inGroupNo);
 	local myPresetStart = getPresetNo(1,inGroupNo);
 	local myPresetEnd = myPresetStart + getGroupOffset(1) - 1;
+	local mySeqStart = getSeqNo(1,inGroupNo);
+	local mySeqEnd = mySeqStart + getGroupOffset(1) - 1;
 	local myMatricksXWings = "No Wings"
 	local myDelayString = "0"
 	local myDelayFromXString = "0"
@@ -1036,13 +1050,24 @@ local function MacroDelayCreate(inNo,inGroupNo,inName,inGroupName)
 	gParams.mVar.mDelayDirStateMaxNo = inGroupNo;
 	C("store macro " .. myMacroNo .. " \"SetUserVar(" .. gParams.mVar.mDelayDirStateNamePrefix .. gParams.mVar.mDelayDirStateMaxNo .. ")\" \"Command\" \"SetUserVar " .. gParams.mVar.mDelayDirStateNamePrefix .. gParams.mVar.mDelayDirStateMaxNo .. " '" .. myMacroNo .. "'\"");
 
-	myCmdString = "Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'XWings' '" .. myMatricksXWings .. "'"
-	myCmdString = myCmdString .. "; Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'DelayFromX' " .. myDelayFromXString
-	myCmdString = myCmdString .. "; Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'DelayToX' " .. myDelayToXString
-	myCmdString = myCmdString .. "; Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'FadeFromX' " .. myFadeString
+	--myCmdString = "Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'XWings' '" .. myMatricksXWings .. "'"
+	-- myCmdString = myCmdString .. "; Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'DelayFromX' " .. myDelayFromXString
+	-- myCmdString = myCmdString .. "; Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'DelayToX' " .. myDelayToXString
+	-- myCmdString = myCmdString .. "; Set Preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " 'FadeFromX' " .. myFadeString
+
+	myCmdString = "Set sequence " .. mySeqStart .. " thru " .. mySeqEnd .. " Cue 1 Property 'XWings' '" .. myMatricksXWings .. "'"
+	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"" .. myCmdString ..  "\"");
+
+	myCmdString = "Set sequence " .. mySeqStart .. " thru " .. mySeqEnd .. " Cue 1 Property 'DelayFromX' " .. myDelayFromXString
+	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"" .. myCmdString ..  "\"");
+
+	myCmdString = "Set sequence " .. mySeqStart .. " thru " .. mySeqEnd .. " Cue 1 Property 'DelayToX' " .. myDelayToXString
+	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"" .. myCmdString ..  "\"");
+
+	myCmdString = "Set sequence " .. mySeqStart .. " thru " .. mySeqEnd .. " Cue 1 Property 'FadeFromX' " .. myFadeString
 	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"" .. myCmdString ..  "\"");
 	
-	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"cook preset 4." .. myPresetStart .. " thru " .. myPresetEnd .. " /m\"");
+	C("store macro " .. myMacroNo .. " \"ColorDelay(" .. inGroupName .. ")\" \"Command\" \"cook seq " .. mySeqStart .. " thru " .. mySeqEnd .. " /m\"");
 
 
 	for myPos=1,gParams.mMaxDelayMacroNo,1 do
@@ -1536,7 +1561,7 @@ local function MacroColorFlipAllCreate(inNo,inGroupNo,inMaxGroups)
 		if ( myGroup.mInclude == true ) then
 			local myGroupNo = myGroup.mNo;
 			myExecMacroNo = getMacroNo(inNo,myGroupNo); 
-			myCmdString = "go+ macro $" .. gParams.mVar.mColorValStateNameLastPrefix .. myGroupNo
+			myCmdString = "go+ macro $" .. gParams.mVar.mColorValStateNameLastPrefix .. myGroupNo .. "; "
 			C("store macro " .. myMacroNo .. " \"GoMacro" .. myExecMacroNo .. "\" \"Command\" \"" .. myCmdString .. "\"");
 		end
 	end
@@ -1895,6 +1920,7 @@ local function CgInstall()
 				CreateGridEntry(myEntryNo,myGroupItem);
 				myEntryNoBackup = myEntryNo;
 			end
+
 			-- Create the delay macros if we are rgb or cmy, otherwise that does not make sense.
 			if ( myGroupItem.mColMixType == cColMixTypeRGBCMY ) then
 				CreateDelayMacros(myEntryNoBackup,myGroupNo,myGroupName);
@@ -1902,9 +1928,11 @@ local function CgInstall()
 			-- Create Label for layout view
 			LabelCreate(myGroupNo,nil);
 			gParams.mColorGrid.mCurrentRowNo = gParams.mColorGrid.mCurrentRowNo + 1;
+			waitForCommandsFinished();
 		end
-		waitForCommandsFinished();
 	end
+
+	waitForCommandsFinished();
 
 	-- Add "All" Grid items
 	CreateAllGroup(myGroupNo);
